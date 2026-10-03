@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import okamiLogo from "../assets/okami.svg";
 import "./Login.css";
 
-export default function Login({setUser}) {
+export default function Login({ setUser }) {
+    const navigate = useNavigate();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [message, setMessage] = useState("");
@@ -32,6 +34,7 @@ export default function Login({setUser}) {
 
         console.log("Login correcto:", data);
         setUser(data.user);
+        navigate("/");
 
         } catch (error) {
         console.error("Error al iniciar sesión:", error);
