@@ -1,0 +1,258 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+
+  width: 100%;
+  min-height: 100vh;
+}
+
+body {
+  font-family: "Inter", sans-serif;
+}
+
+
+/* =========================
+   DASHBOARD
+========================= */
+
+.dashboard {
+  width: 100%;
+  min-height: 100vh;
+
+  display: flex;
+
+  background-color: #f1efe9;
+
+  color: #171816;
+}
+
+
+/* =========================
+   SIDEBAR
+========================= */
+
+.dashboard-sidebar {
+  width: 280px;
+  min-height: 100vh;
+
+  background-color: #ffffff;
+
+  border-right: 1px solid #dad7d0;
+
+  display: flex;
+  flex-direction: column;
+}
+
+
+/* =========================
+   USUARIO
+========================= */
+
+.sidebar-user {
+  padding: 34px 28px;
+
+  border-bottom: 1px solid #ebe8e1;
+}
+
+.sidebar-logo {
+  width: 48px;
+  height: 48px;
+
+  object-fit: contain;
+
+  margin-bottom: 24px;
+}
+
+.sidebar-welcome {
+  margin: 0 0 6px;
+
+  font-size: 9px;
+  font-weight: 700;
+
+  letter-spacing: 0.14em;
+
+  color: #c28f37;
+}
+
+.sidebar-user h2 {
+  margin: 0;
+
+  font-size: 18px;
+  font-weight: 600;
+
+  color: #171816;
+}
+
+.sidebar-user span {
+  display: block;
+
+  margin-top: 5px;
+
+  font-size: 11px;
+
+  color: #817b73;
+
+  text-transform: capitalize;
+}
+
+
+/* =========================
+   MENÚ
+========================= */
+
+.sidebar-menu {
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-item {
+  width: 100%;
+
+  padding: 22px 28px;
+
+  border: none;
+  border-bottom: 1px solid #ebe8e1;
+
+  background-color: transparent;
+
+  text-align: left;
+
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+
+  color: #57534e;
+
+  cursor: pointer;
+
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    padding-left 0.15s ease;
+}
+
+.sidebar-item:hover {
+  background-color: #f7f5f0;
+
+  color: #171816;
+
+  padding-left: 32px;
+}
+
+.sidebar-item.active {
+  background-color: #191a18;
+
+  color: #ffffff;
+
+  font-weight: 600;
+}
+
+
+/* =========================
+   CONTENIDO PRINCIPAL
+========================= */
+
+.dashboard-content {
+  flex: 1;
+
+  padding: 60px;
+
+  background-color: #f1efe9;
+}
+
+
+/* =========================
+   TITULOS
+========================= */
+
+.dashboard-label {
+  margin: 0 0 8px;
+
+  font-size: 10px;
+  font-weight: 700;
+
+  letter-spacing: 0.14em;
+
+  color: #c28f37;
+}
+
+.dashboard-content h1 {
+  margin: 0;
+
+  font-size: 30px;
+  font-weight: 700;
+
+  color: #151515;
+}
+
+.dashboard-description {
+  margin: 8px 0 30px;
+
+  font-size: 13px;
+
+  color: #7c766e;
+}
+
+
+/* =========================
+   CONTENIDO
+========================= */
+
+.content-card {
+  width: 100%;
+  min-height: 500px;
+
+  padding: 24px;
+
+  background-color: #ffffff;
+
+  border: 1px solid #d7d7d7;
+  border-radius: 12px;
+
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.03),
+    0 8px 20px rgba(0, 0, 0, 0.02);
+}
+
+.empty-state {
+  width: 100%;
+  min-height: 100px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px dashed #d8d3ca;
+  border-radius: 8px;
+
+  background-color: #faf9f6;
+
+  color: #9a948c;
+
+  font-size: 12px;
+}
+
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media (max-width: 800px) {
+
+  .dashboard-sidebar {
+    width: 220px;
+  }
+
+  .dashboard-content {
+    padding: 30px;
+  }
+
+}
