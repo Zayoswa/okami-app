@@ -27,12 +27,13 @@ a la fecha (03/10/26) Esto todavia puede sufrir cambios.
 ### Backend
 - Python
 - FastAPI
+- FireBase (Proximamente)
 
 ## Estructura
 
 - `/frontend_react`: aplicación web React.
 - `/backend`: API desarrollada con FastAPI.
 
-- Instrucciones
-Si esta tu primera vez clonando el codigo. Ejecutra en el terminarl ./setup.ps1 . Esto instalara la dependecias
-Despues, para prender el front con el backend. usar ./start-dev.ps1
+### Instrucciones
+- Si esta tu primera vez clonando el codigo. Ejecutra en el terminarl ./setup.ps1 . Esto instalara la dependecias
+- Despues, para prender el front con el backend. usar ./start-dev.ps1
