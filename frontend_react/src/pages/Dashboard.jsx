@@ -13,28 +13,24 @@ export default function Dashboard({ user }) {
             alt="Okami"
             className="sidebar-logo"
           />
-
           <p className="sidebar-welcome">
             BIENVENIDO
           </p>
-
           <h2>
             {user?.name || "Usuario"}
           </h2>
-
           <span>
             {user?.role || ""}
           </span>
         </div>
 
         <nav className="sidebar-menu">
-
-          <button className="sidebar-item active">
-            Próximas Reservas
-          </button>
-
           <button className="sidebar-item">
-            Reservas de Hoy
+            Dashboard
+          </button>
+          
+          <button className="sidebar-item active">
+            Reservas
           </button>
 
           <button className="sidebar-item">
@@ -42,7 +38,6 @@ export default function Dashboard({ user }) {
           </button>
 
         </nav>
-
       </aside>
 
 
@@ -53,7 +48,7 @@ export default function Dashboard({ user }) {
         </p>
 
         <h1>
-          Próximas Reservas
+          Dashboard
         </h1>
 
         <p className="dashboard-description">
