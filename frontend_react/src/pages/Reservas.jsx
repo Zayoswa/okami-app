@@ -1,21 +1,28 @@
-import { useState } from "react";
-
-// Estos son datos de ejemplos. Recordar Borrar
-import { reservasMock } from "../data/reservasMock.js";
-
+import { reservasMock } from "../data/reservasMock";
+import ReservationCard from "../components/ReservationCard";
+import AddReservationButton from "../components/addReservationButton";
+import "./Reservas.css";
 
 export default function Reservas() {
-    // MOCKUP DE RESERVAS, SE PUEDE ELIMINAR CUANDO SE TENGA INFORMACION REAL PARA MOSTRAR
-    const [reservas, setReservas] = useState(reservasMock);
-
     return (
-        <div>
-            <h1>Reservas</h1>
-            <p>Lista de reservas</p>
-            <button>Agregar Reserva</button>
-            
+        <main className="reservas-page">
+        <div className="reservas-header">
+            <p className="reservas-label">RESERVAS</p>
+
+            <h1>Reservas del estudio</h1>
+
+            <p className="reservas-description">
+            Visualiza las reservas actualmente registradas.
+            </p>
+
+            <AddReservationButton />
         </div>
+
+        <section className="reservas-container">
+            {reservasMock.map((reserva) => (
+            <ReservationCard key={reserva.id} reserva={reserva} />
+            ))}
+        </section>
+        </main>
     );
-}
-
-
+    }

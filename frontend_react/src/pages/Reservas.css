@@ -1,0 +1,199 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+    .reservas-page {
+    width: 100%;
+    min-height: 100vh;
+
+    padding: 54px 60px;
+
+    background-color: #f1efe9;
+
+    font-family: "Inter", sans-serif;
+
+    color: #171816;
+    }
+
+
+    /* =========================
+    HEADER
+    ========================= */
+
+    .reservas-header {
+    margin-bottom: 28px;
+    }
+
+    .reservas-label {
+    margin: 0 0 7px;
+
+    font-size: 10px;
+    font-weight: 700;
+
+    letter-spacing: 0.14em;
+
+    color: #c28f37;
+    }
+
+    .reservas-header h1 {
+    margin: 0;
+
+    font-size: 30px;
+    font-weight: 700;
+    }
+
+    .reservas-description {
+    margin: 8px 0 0;
+
+    font-size: 13px;
+
+    color: #79736c;
+    }
+
+
+    /* =========================
+    CONTENEDOR
+    ========================= */
+
+    .reservas-container {
+    display: flex;
+    flex-direction: column;
+
+    gap: 14px;
+    }
+
+
+    /* =========================
+    TARJETA RESERVA
+    ========================= */
+
+    .reserva-card {
+    padding: 20px 22px;
+
+    background-color: #ffffff;
+
+    border: 1px solid #d7d7d7;
+    border-radius: 12px;
+
+    box-shadow:
+        0 2px 6px rgba(0, 0, 0, 0.03),
+        0 8px 18px rgba(0, 0, 0, 0.02);
+    }
+
+
+    /* =========================
+    INFORMACIÓN PRINCIPAL
+    ========================= */
+
+    .reserva-main {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+
+    gap: 20px;
+    }
+
+    .reserva-cliente {
+    margin: 0;
+
+    font-size: 16px;
+    font-weight: 600;
+
+    color: #171816;
+    }
+
+    .reserva-servicio {
+    margin: 5px 0 0;
+
+    font-size: 12px;
+
+    color: #7b756d;
+    }
+
+
+    /* =========================
+    ESTADO
+    ========================= */
+
+    .reserva-estado {
+    padding: 6px 10px;
+
+    border-radius: 6px;
+
+    font-size: 10px;
+    font-weight: 600;
+
+    text-transform: capitalize;
+    }
+
+    .reserva-estado.confirmada {
+    background-color: #f3d99f;
+
+    color: #5d4618;
+    }
+
+    .reserva-estado.finalizada {
+    background-color: #ece9e3;
+
+    color: #69635b;
+    }
+
+
+    /* =========================
+    FECHA / HORA
+    ========================= */
+
+    .reserva-info {
+    display: flex;
+
+    gap: 40px;
+
+    margin-top: 18px;
+    padding-top: 14px;
+
+    border-top: 1px solid #ece9e3;
+    }
+
+    .reserva-info span {
+    display: flex;
+    flex-direction: column;
+
+    gap: 3px;
+
+    font-size: 9px;
+    font-weight: 600;
+
+    letter-spacing: 0.08em;
+
+    text-transform: uppercase;
+
+    color: #a29c93;
+    }
+
+    .reserva-info strong {
+    font-size: 12px;
+    font-weight: 500;
+
+    letter-spacing: 0;
+
+    text-transform: none;
+
+    color: #3f3b36;
+    }
+
+
+    /* =========================
+    RESPONSIVE
+    ========================= */
+
+    @media (max-width: 700px) {
+    .reservas-page {
+        padding: 30px 20px;
+    }
+
+    .reserva-main {
+        flex-direction: column;
+    }
+
+    .reserva-info {
+        gap: 20px;
+    }
+    }
