@@ -1,16 +1,44 @@
-# React + Vite
+# Frontend de Okami
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplicación React + Vite para gestionar reservas y espacios del estudio.
 
-Currently, two official plugins are available:
+## Desarrollo
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Desde la raíz del repositorio, ejecutar `./setup.ps1` y luego `./start-dev.ps1`.
+Para ejecutar únicamente el frontend desde esta carpeta: `npm run dev`.
+La API local se configura en `.env.development`. Para personalizarla, copiar
+`.env.example` a `.env.local` y reiniciar Vite.
 
-## React Compiler
+## Funciones actuales
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Admin: Reservas Generales y Calendario.
+- Tatuador: Mis Reservas y Calendario.
+- Dashboard Gerencial, Alertas, Tatuadores, Perfil y Documentacion: módulos pendientes según el rol, sin navegación ni contenido.
+- Crear, editar y borrar con confirmación, filtros, KPI y paginación de siete reservas.
+- Sesiones con fecha, inicio, término y espacio; agenda mensual y columnas por espacio.
 
-## Expanding the ESLint configuration
+Los datos iniciales están en `src/data`. Los cambios se guardan en el navegador,
+en `localStorage`, usando `okami.reservas.v1`; los JSON no se modifican.
+Los ejemplos incluyen 80 reservas históricas adicionales y un catálogo de 30
+tatuadores. Se conservan al desactivar el módulo Dashboard Gerencial.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+La capacidad del resumen cuenta todas las reservas pendientes por espacio.
+También se validan sesiones que se superponen. Las restricciones por rol son
+parte de la demostración local; la autenticación real en el backend está pendiente.
+
+## Código
+
+- `pages`: pantallas y coordinación de sus acciones.
+- `components`: tarjetas, agenda, modales, navegación y control de acceso a módulos.
+- `hooks`: estado de reservas y ciclo de vida de los modales.
+- `utils`: operaciones, persistencia, capacidad, filtros, fechas y propiedad de reservas.
+- `config/navigation.js`: permisos, orden de módulos y marca `comingSoon`.
+
+## Verificación
+
+- `npm run lint`
+- `npm test`
+- `npm run build` (definir `VITE_API_BASE_URL` en `.env.local` o en el entorno).
+
+Las credenciales de los dos usuarios de prueba están documentadas en el README
+principal y definidas en `backend-fastapi/data/usuariosMock.json`.

@@ -1,0 +1,8 @@
+[
+  { "id": "A", "nombre": "Espacio A", "capacidadMaxima": 3 },
+  { "id": "B", "nombre": "Espacio B", "capacidadMaxima": 2 },
+  { "id": "C", "nombre": "Espacio C", "capacidadMaxima": 4 },
+  { "id": "D", "nombre": "Espacio D", "capacidadMaxima": 1 },
+  { "id": "E", "nombre": "Espacio E", "capacidadMaxima": 2 },
+  { "id": "F", "nombre": "Espacio F", "capacidadMaxima": 3 }
+]

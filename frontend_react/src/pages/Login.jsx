@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import okamiLogo from "../assets/okami.svg";
+import { API_BASE_URL } from "../config/api";
+import { homeForUser } from "../utils/access";
 import "./Login.css";
 
 export default function Login({ setUser }) {
@@ -14,7 +16,7 @@ export default function Login({ setUser }) {
         setMessage("");
 
         try {
-        const response = await fetch("http://127.0.0.1:8000/auth/login", {
+        const response = await fetch(`${API_BASE_URL}/auth/login`, {
             method: "POST",
             headers: {
             "Content-Type": "application/json",
@@ -32,9 +34,8 @@ export default function Login({ setUser }) {
             return;
         }
 
-        console.log("Login correcto:", data);
         setUser(data.user);
-        navigate("/");
+        navigate(homeForUser(data.user), { replace: true });
 
         } catch (error) {
         console.error("Error al iniciar sesión:", error);

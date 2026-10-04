@@ -1,8 +1,12 @@
+import json
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 app = FastAPI()
+usuarios_mock_path = Path(__file__).parent / "data" / "usuariosMock.json"
 
 origins = [
     "http://localhost:5173",
@@ -19,29 +23,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 class LoginRequest(BaseModel):
     email: str
     password: str
-
-
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
 
-@app.post('/auth/login')
-def login(data:LoginRequest):
-    # Estos datos son MOCK UP. ES PARA VALIDAR.
-    if data.email == 'admin@okami.cl' and data.password == 'admin':
-        return {
-            'message': 'Login exitoso',
-            'user': {
-                'id': 1,
-                'name': 'Admin Demo',
-                'role': 'admin'
+@app.post("/auth/login")
+def login(data: LoginRequest):
+    # Credenciales de prueba local; no constituyen autenticación de producción.
+    usuarios_mock = json.loads(usuarios_mock_path.read_text(encoding="utf-8"))
+    for usuario in usuarios_mock:
+        if data.email == usuario["email"] and data.password == usuario["password"]:
+            return {
+                "message": "Login exitoso",
+                "user": {key: usuario[key] for key in ("id", "name", "role")},
             }
-        }
-    raise HTTPException(status_code=401, detail='Credenciales inválidas')
+    raise HTTPException(status_code=401, detail="Credenciales inválidas")
 
 

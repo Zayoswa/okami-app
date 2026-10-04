@@ -1,15 +1,17 @@
 # Python
-backend/.venv/
+backend-fastapi/.venv/
 __pycache__/
 *.pyc
 
 # Node
-frontend/node_modules/
-frontend/dist/
+frontend_react/node_modules/
+frontend_react/dist/
 
 # Environment variables
 .env
 *.env
+.env.*.local
+.env.local
 
 # IDE
 .vscode/

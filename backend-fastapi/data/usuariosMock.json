@@ -1,0 +1,4 @@
+[
+  { "id": 1, "email": "admin@okami.cl", "password": "admin", "name": "Admin Demo", "role": "admin" },
+  { "id": 2, "email": "tatuador@okami.cl", "password": "tatuador", "name": "Bruno Toro", "role": "tatuador" }
+]
