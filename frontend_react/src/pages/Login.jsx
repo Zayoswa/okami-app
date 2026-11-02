@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import okamiLogo from "../assets/okami.svg";
 import { API_BASE_URL } from "../config/api";
 import { homeForUser } from "../utils/access";
 import "./Login.css";
+
+
 
 export default function Login({ setUser }) {
     const navigate = useNavigate();
@@ -42,7 +44,6 @@ export default function Login({ setUser }) {
         setMessage("No se pudo conectar con el servidor");
         }
     }
-
     return (
         <main className="login-page">
         <section className="login-card">
@@ -92,4 +93,62 @@ export default function Login({ setUser }) {
         </section>
         </main>
     );
+    } 
+/*
+    export default function Login(){
+    const [roles, setUsers] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+  async function fetchUsers() {
+    setLoading(true);
+
+    try {
+      const response = await fetch(
+        "http://localhost:8000/api/rol"
+      );
+
+      const data = await response.json();
+      setUsers(data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
     }
+  }
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  return (
+    <div style={{ padding: 30 }}>
+      <h1>shootingmyselfrn Database</h1>
+
+      <button onClick={fetchUsers}>
+        KILLMEKILLMEKILLMEKILLME
+      </button>
+
+      {loading ? (
+        <p>GODFUCKINGDAMNIT</p>
+      ) : (
+        <table border="1" cellPadding="10">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {roles.map((rol) => (
+              <tr key={rol.id}>
+                <td>{rol.id}</td>
+                <td>{rol.nombre}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}*/
