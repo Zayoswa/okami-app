@@ -7,6 +7,7 @@ import { overlappingReservations, spaceOccupancy, pendingSpaceOccupancy, reserva
 export default function ReservationModal({ user, reserva, reservas, initialDate = "", initialSpace = "", onSave, onClose }) {
   const dialogRef = useModalDialog();
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   const [fecha, setFecha] = useState(reserva?.fecha ?? initialDate);
   const [horaInicio, setHoraInicio] = useState(reserva?.horaInicio ?? "");
   const [horaFin, setHoraFin] = useState(reserva?.horaFin ?? "");
@@ -24,8 +25,9 @@ export default function ReservationModal({ user, reserva, reservas, initialDate 
   const overlapping = overlappingReservations(reservas, selectedSpace, fecha, horaInicio, horaFin, reserva?.id)
     .sort((a, b) => a.horaFin.localeCompare(b.horaFin));
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
+    if (saving) return;
     const form = event.currentTarget;
     const data = new FormData(form);
     const cliente = data.get("cliente").trim();
@@ -50,8 +52,9 @@ export default function ReservationModal({ user, reserva, reservas, initialDate 
       setError("Ingresa nombres válidos y un precio entero igual o mayor a cero.");
       return;
     }
+    setSaving(true);
     try {
-      onSave({
+      await onSave({
         id: reserva?.id ?? crypto.randomUUID(),
         cliente,
         tatuador,
@@ -65,18 +68,21 @@ export default function ReservationModal({ user, reserva, reservas, initialDate 
       });
       onClose();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "No se pudo guardar la reserva en este navegador. Intenta nuevamente.");
+      setError(saveError instanceof Error ? saveError.message : "No se pudo guardar la reserva. Intenta nuevamente.");
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
-    <dialog ref={dialogRef} className="reservation-modal" aria-labelledby="reservation-modal-title" onCancel={onClose}>
+    <dialog ref={dialogRef} className="reservation-modal" aria-labelledby="reservation-modal-title" onCancel={(event) => { if (saving) event.preventDefault(); else onClose(); }} aria-busy={saving}>
       <div className="reservation-modal-header">
         <h2 id="reservation-modal-title">{reserva ? "Editar reserva" : "Crear reserva"}</h2>
-        <button type="button" className="reservation-modal-close" onClick={onClose} aria-label="Cerrar formulario">×</button>
+        <button type="button" className="reservation-modal-close" onClick={onClose} disabled={saving} aria-label="Cerrar formulario">×</button>
       </div>
       <p className="reservation-modal-description">{reserva ? "Actualiza los datos del ticket. Su fecha de creación se conserva." : "Completa los datos del ticket. Su fecha de creación se registra automáticamente."}</p>
       <form className="reservation-form" onSubmit={handleSubmit}>
+        <fieldset disabled={saving} style={{ display: "contents" }}>
         <label>Nombre del cliente<input name="cliente" defaultValue={reserva?.cliente ?? ""} required maxLength={100} autoFocus /></label>
         <label>Nombre del tatuador<input name="tatuador" defaultValue={user?.role === "tatuador" ? user.name : reserva?.tatuador ?? ""} readOnly={user?.role === "tatuador"} required maxLength={100} /></label>
         <label>Fecha<input name="fecha" value={fecha} onChange={(event) => { setFecha(event.target.value); setError(""); }} type="date" required /></label>
@@ -117,8 +123,9 @@ export default function ReservationModal({ user, reserva, reservas, initialDate 
         {error && <p className="reservation-form-error" role="alert">{error}</p>}
         <div className="reservation-modal-actions">
           <button type="button" className="reservation-button reservation-button-secondary" onClick={onClose}>Cancelar</button>
-          <button type="submit" className="reservation-button" disabled={Boolean(capacityError)}>{reserva ? "Guardar cambios" : "Guardar reserva"}</button>
+          <button type="submit" className="reservation-button" disabled={saving || Boolean(capacityError)}>{saving ? "Guardando…" : reserva ? "Guardar cambios" : "Guardar reserva"}</button>
         </div>
+        </fieldset>
       </form>
     </dialog>
   );

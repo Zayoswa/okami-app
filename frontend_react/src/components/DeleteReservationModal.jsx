@@ -4,21 +4,27 @@ import useModalDialog from "../hooks/useModalDialog";
 export default function DeleteReservationModal({ reserva, onConfirm, onClose }) {
   const dialogRef = useModalDialog();
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  function handleConfirm() {
+  async function handleConfirm() {
+    if (saving) return;
+    setError("");
+    setSaving(true);
     try {
-      onConfirm(reserva);
+      await onConfirm(reserva);
       onClose();
-    } catch {
-      setError("No se pudo borrar la reserva en este navegador. Intenta nuevamente.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo borrar la reserva. Intenta nuevamente.");
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
-    <dialog ref={dialogRef} className="reservation-modal" aria-labelledby="delete-reservation-title" aria-describedby="delete-reservation-description" onCancel={onClose}>
+    <dialog ref={dialogRef} className="reservation-modal" aria-labelledby="delete-reservation-title" aria-describedby="delete-reservation-description" onCancel={(event) => { if (saving) event.preventDefault(); else onClose(); }} aria-busy={saving}>
       <div className="reservation-modal-header">
         <h2 id="delete-reservation-title">Borrar reserva</h2>
-        <button type="button" className="reservation-modal-close" onClick={onClose} aria-label="Cerrar confirmación">×</button>
+        <button type="button" className="reservation-modal-close" onClick={onClose} disabled={saving} aria-label="Cerrar confirmación">×</button>
       </div>
       <p id="delete-reservation-description" className="reservation-modal-description">
         ¿Quieres borrar la reserva de <strong>{reserva.cliente}</strong> con {reserva.tatuador},
@@ -27,8 +33,8 @@ export default function DeleteReservationModal({ reserva, onConfirm, onClose }) 
       </p>
       {error && <p className="reservation-form-error" role="alert">{error}</p>}
       <div className="reservation-modal-actions">
-        <button type="button" className="reservation-button reservation-button-secondary" onClick={onClose} autoFocus>Cancelar</button>
-        <button type="button" className="reservation-button reservation-button-danger" onClick={handleConfirm}>Borrar reserva</button>
+        <button type="button" className="reservation-button reservation-button-secondary" onClick={onClose} disabled={saving} autoFocus>Cancelar</button>
+        <button type="button" className="reservation-button reservation-button-danger" onClick={handleConfirm} disabled={saving}>{saving ? "Borrando…" : "Borrar reserva"}</button>
       </div>
     </dialog>
   );

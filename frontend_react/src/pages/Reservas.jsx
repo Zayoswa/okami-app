@@ -14,7 +14,7 @@ import { ownsReservation } from "../utils/access";
 const pageSize = 7;
 
 export default function Reservas({ user, personal = false }) {
-    const { reservas, saveReservation: persistReservation, deleteReservation: removeReservation } = useReservations(user);
+    const { reservas, loading, error, reload, saveReservation: persistReservation, deleteReservation: removeReservation } = useReservations(user);
     const [modalOpen, setModalOpen] = useState(false);
     const [editingReservation, setEditingReservation] = useState(null);
     const [deletingReservation, setDeletingReservation] = useState(null);
@@ -29,8 +29,8 @@ export default function Reservas({ user, personal = false }) {
     const pageStart = (currentPage - 1) * pageSize;
     const visibleReservations = filteredReservations.slice(pageStart, pageStart + pageSize);
 
-    function saveReservation(reserva) {
-        persistReservation(reserva, editingReservation?.id);
+    async function saveReservation(reserva) {
+        await persistReservation(reserva, editingReservation?.id);
         if (!editingReservation) setPage(1);
         setMessage(editingReservation ? "Reserva actualizada correctamente." : "Reserva creada correctamente.");
     }
@@ -41,9 +41,9 @@ export default function Reservas({ user, personal = false }) {
         setModalOpen(true);
     }
 
-    function deleteReservation(reserva) {
+    async function deleteReservation(reserva) {
         const updated = reservas.filter((item) => item.id !== reserva.id);
-        removeReservation(reserva.id);
+        await removeReservation(reserva.id);
         const remaining = filterReservations(personal ? updated.filter((item) => ownsReservation(user, item)) : updated, estadoFilter, fechaFilter).length;
         setPage(Math.min(currentPage, Math.max(1, Math.ceil(remaining / pageSize))));
         setMessage("Reserva borrada correctamente.");
@@ -82,10 +82,13 @@ export default function Reservas({ user, personal = false }) {
                         </select>
                     </label>
                 </div>
-                <CreateReservationButton onClick={() => openReservationModal()} />
+                <CreateReservationButton disabled={loading || Boolean(error)} onClick={() => openReservationModal()} />
             </div>
         </div>
 
+        {loading && <p role="status">Cargando reservas…</p>}
+        {error && <div role="alert"><p>{error}</p><button type="button" className="reservation-button" onClick={reload}>Reintentar</button></div>}
+        {!loading && !error && <>
         <section className="reservas-kpis" aria-label="Resumen de reservas filtradas" aria-live="polite">
             <article className="reserva-kpi total">
                 <p className="reserva-kpi-label">Total de reservas</p>
@@ -135,6 +138,7 @@ export default function Reservas({ user, personal = false }) {
                 <button type="button" className="reservation-button reservation-button-secondary" disabled={currentPage === totalPages} onClick={() => setPage(currentPage + 1)}>Siguiente</button>
             </nav>
         )}
+        </>}
         {modalOpen && <ReservationModal user={user} reserva={editingReservation} reservas={reservas} onSave={saveReservation} onClose={() => setModalOpen(false)} />}
         {deletingReservation && <DeleteReservationModal reserva={deletingReservation} onConfirm={deleteReservation} onClose={() => setDeletingReservation(null)} />}
         </div>

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import okamiLogo from "../assets/okami.svg";
 import { modulesForUser } from "../config/navigation";
@@ -6,9 +7,14 @@ export default function Sidebar({ user, onLogout }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
-  function handleLogout() {
-    onLogout();
-    navigate("/login", { replace: true });
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  async function handleLogout() {
+    setBusy(true);
+    setError("");
+    try { await onLogout(); navigate("/login", { replace: true }); }
+    catch { setError("No se confirmó el cierre remoto. La sesión local se eliminó. Recarga la página."); }
+    finally { setBusy(false); }
   }
 
   return (
@@ -32,7 +38,8 @@ export default function Sidebar({ user, onLogout }) {
           </button>
         ))}
       </nav>
-      <button type="button" className="sidebar-item sidebar-logout" onClick={handleLogout}>
+      {error && <p role="alert">{error}</p>}
+      <button disabled={busy} type="button" className="sidebar-item sidebar-logout" onClick={handleLogout}>
         Cerrar sesión
       </button>
     </aside>

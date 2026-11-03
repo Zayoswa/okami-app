@@ -2,7 +2,9 @@
 
 Aplicación web para coordinar las reservas y los espacios de trabajo del estudio de tatuajes Okami. Centraliza la información de las sesiones y facilita la organización del administrador y los tatuadores.
 
-**Estado del proyecto:** prototipo funcional para pruebas locales. Este avance utiliza datos mockup y guarda los cambios de las reservas en el navegador. La conexión a una base de datos y la autenticación de producción están pendientes.
+**Estado del proyecto:** prototipo funcional para pruebas locales. Este avance utiliza datos mockup y guarda los cambios de las reservas en el navegador. El acceso de usuarios está implementado con Supabase Auth y requiere configurar el proyecto. Las reservas todavía no están conectadas a la base de datos.
+
+**Configuración del acceso cerrado:** seguir [la guía de activación](docs/acceso-cerrado.md), aplicar la migración revisada y crear al primer administrador antes de probar el login.
 
 ## Funciones disponibles
 
@@ -21,7 +23,7 @@ Aplicación web para coordinar las reservas y los espacios de trabajo del estudi
 
 | Rol | Disponibles | Próximamente |
 | --- | --- | --- |
-| Administrador | Calendario, Reservas Generales | Alertas, Dashboard Gerencial, Tatuadores, Perfil, Documentacion |
+| Administrador | Calendario, Reservas Generales, Tatuadores | Alertas, Dashboard Gerencial, Perfil, Documentacion |
 | Tatuador | Mis Reservas, Calendario | Alertas, Perfil |
 
 El administrador puede gestionar todas las reservas. El tatuador puede gestionar sus propias reservas y consultar la organización de los espacios en el calendario. Los módulos marcados como «Proximamente» no abren contenido al pulsarlos.
@@ -111,14 +113,13 @@ npm install
 npm run dev
 ```
 
-## Usuarios de prueba
+## Acceso de usuarios
 
-| Rol | Correo | Contraseña |
-| --- | --- | --- |
-| Administrador | admin@okami.cl | admin |
-| Tatuador (Bruno Toro) | tatuador@okami.cl | tatuador |
+No hay registro público. El dueño recibe una cuenta administrativa creada de forma controlada. Desde Tatuadores puede invitar por correo y activar o desactivar el acceso de tatuadores, conservando sus reservas.
 
-Estas credenciales son únicamente para la demostración local. La sesión permanece en memoria: al recargar la página se debe iniciar sesión nuevamente.
+El login valida cuentas reales de Supabase Auth. Las antiguas credenciales mockup ya no habilitan acceso. La sesión se conserva en sessionStorage durante la vida de la pestaña, se verifica al recargar y renueva sus tokens cuando es necesario.
+
+Antes de iniciar, configurar las claves del backend, bloquear el registro público en Supabase, aplicar la migración y configurar las URLs de invitación siguiendo [esta guía](docs/acceso-cerrado.md).
 
 ## Configuración de la API
 
@@ -155,7 +156,7 @@ El resumen de ocupación cuenta todas las reservas pendientes asignadas a cada e
 
 Las modificaciones se guardan bajo la clave `okami.reservas.v1` en `localStorage`; no modifican los archivos JSON ni se comparten entre navegadores o equipos. Para recuperar los datos iniciales, elimina esa clave desde las herramientas de desarrollo del navegador y recarga la página. Esto elimina los cambios locales de las reservas.
 
-Las credenciales mockup se encuentran en `backend-fastapi/data/usuariosMock.json`. Los permisos actuales sirven para probar la interfaz; la autorización de las operaciones en el servidor y la persistencia centralizada aún deben implementarse.
+Las credenciales mockup se encuentran en `backend-fastapi/data/usuariosMock.json`. Las operaciones de usuarios requieren autenticación y autorización del servidor. Las reservas siguen siendo locales y su autorización remota se implementará al conectarlas.
 
 ## Estructura del proyecto
 
@@ -199,7 +200,7 @@ El resultado se genera en `frontend_react/dist`. Para revisarlo localmente, ejec
 ## Alcance pendiente
 
 - Conexión a una base de datos para compartir y conservar la información de forma centralizada.
-- Autenticación y autorización de producción en el backend.
+- Integración remota de reservas con autorización y validación transaccional.
 - Desarrollo de los módulos marcados como «Proximamente».
 
 Este repositorio presenta el avance funcional del flujo de reservas y la coordinación de espacios; todavía no corresponde a una versión lista para producción.

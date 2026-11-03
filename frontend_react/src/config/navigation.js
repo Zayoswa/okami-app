@@ -3,7 +3,7 @@ export const navigation = [
   { id: "reservas", path: "/reservas", label: "Reservas Generales", roles: ["admin"] },
   { id: "mis-reservas", path: "/mis-reservas", label: "Mis Reservas", roles: ["tatuador"] },
   { id: "calendario", path: "/calendario", label: "Calendario", roles: ["admin", "tatuador"] },
-  { id: "tatuadores", label: "Tatuadores (Proximamente)", comingSoon: true, roles: ["admin"] },
+  { id: "tatuadores", path: "/tatuadores", label: "Tatuadores", roles: ["admin"] },
   { id: "alertas", label: "Alertas (Proximamente)", comingSoon: true, roles: ["admin", "tatuador"] },
   { id: "perfil", label: "Perfil (Proximamente)", comingSoon: true, roles: ["admin", "tatuador"] },
   { id: "documentacion", label: "Documentacion (Proximamente)", comingSoon: true, roles: ["admin"] },

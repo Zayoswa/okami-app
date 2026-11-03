@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import okamiLogo from "../assets/okami.svg";
-import { API_BASE_URL } from "../config/api";
+import { signIn } from "../services/authService";
 import { homeForUser } from "../utils/access";
 import "./Login.css";
 
@@ -12,36 +12,23 @@ export default function Login({ setUser }) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [message, setMessage] = useState("");
+    const [submitting, setSubmitting] = useState(false);
 
     async function handleSubmit(event) {
         event.preventDefault();
+        if (submitting) return;
         setMessage("");
+        setSubmitting(true);
 
         try {
-        const response = await fetch(`${API_BASE_URL}/auth/login`, {
-            method: "POST",
-            headers: {
-            "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-            email,
-            password,
-            }),
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            setMessage(data.detail || "Correo o contraseña incorrectos");
-            return;
-        }
-
-        setUser(data.user);
-        navigate(homeForUser(data.user), { replace: true });
+        const user = await signIn(email, password);
+        setUser(user);
+        navigate(homeForUser(user), { replace: true });
 
         } catch (error) {
-        console.error("Error al iniciar sesión:", error);
-        setMessage("No se pudo conectar con el servidor");
+        setMessage(error instanceof Error ? error.message : "No se pudo iniciar sesión.");
+        } finally {
+        setSubmitting(false);
         }
     }
     return (
@@ -59,6 +46,7 @@ export default function Login({ setUser }) {
             <p className="login-subtitle">
             Gestión del estudio
             </p>
+            <p>Acceso con una cuenta autorizada por el estudio. Las cuentas mock anteriores ya no están habilitadas.</p>
 
             <form className="login-form" onSubmit={handleSubmit}>
 
@@ -78,12 +66,12 @@ export default function Login({ setUser }) {
                 required
             />
 
-            <button type="submit">
-                Entrar
+            <button type="submit" disabled={submitting}>
+                {submitting ? "Entrando…" : "Entrar"}
             </button>
 
             {message && (
-                <p className="login-message">
+                <p className="login-message" role="alert">
                 {message}
                 </p>
             )}
@@ -94,61 +82,3 @@ export default function Login({ setUser }) {
         </main>
     );
     } 
-/*
-    export default function Login(){
-    const [roles, setUsers] = useState([]);
-    const [loading, setLoading] = useState(true);
-
-  async function fetchUsers() {
-    setLoading(true);
-
-    try {
-      const response = await fetch(
-        "http://localhost:8000/api/rol"
-      );
-
-      const data = await response.json();
-      setUsers(data);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  return (
-    <div style={{ padding: 30 }}>
-      <h1>shootingmyselfrn Database</h1>
-
-      <button onClick={fetchUsers}>
-        KILLMEKILLMEKILLMEKILLME
-      </button>
-
-      {loading ? (
-        <p>GODFUCKINGDAMNIT</p>
-      ) : (
-        <table border="1" cellPadding="10">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Name</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {roles.map((rol) => (
-              <tr key={rol.id}>
-                <td>{rol.id}</td>
-                <td>{rol.nombre}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
-}*/

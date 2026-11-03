@@ -16,7 +16,7 @@ const weekdays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
 export default function Calendario({ user }) {
   const today = todayInSantiago();
-  const { reservas, saveReservation, deleteReservation } = useReservations(user);
+  const { reservas, loading, error, reload, saveReservation, deleteReservation } = useReservations(user);
   const [month, setMonth] = useState(today.slice(0, 7));
   const [selectedDate, setSelectedDate] = useState(today);
   const [spaceFilter, setSpaceFilter] = useState("todos");
@@ -43,15 +43,15 @@ export default function Calendario({ user }) {
     setModal({ reserva });
   }
 
-  function handleSave(reserva) {
-    saveReservation(reserva, modal.reserva?.id);
+  async function handleSave(reserva) {
+    await saveReservation(reserva, modal.reserva?.id);
     setSelectedDate(reserva.fecha);
     setMonth(reserva.fecha.slice(0, 7));
     setMessage(modal.reserva ? "Reserva actualizada correctamente." : "Reserva creada correctamente.");
   }
 
-  function handleDelete(reserva) {
-    deleteReservation(reserva.id);
+  async function handleDelete(reserva) {
+    await deleteReservation(reserva.id);
     setMessage("Reserva borrada correctamente.");
   }
 
@@ -81,9 +81,12 @@ export default function Calendario({ user }) {
             </select>
           </label>
         </div>
-        <button type="button" className="reservation-button" onClick={() => openModal()}>Crear reserva</button>
+        <button type="button" className="reservation-button" disabled={loading || Boolean(error)} onClick={() => openModal()}>Crear reserva</button>
       </div>
       {message && <p className="reservation-success" role="status">{message}</p>}
+      {loading && <p role="status">Cargando reservas…</p>}
+      {error && <div role="alert"><p>{error}</p><button type="button" className="reservation-button" onClick={reload}>Reintentar</button></div>}
+      {!loading && !error && <>
       <section className="calendar-month" aria-labelledby="calendar-month-title">
         <div className="calendar-month-header">
           <h2 id="calendar-month-title" aria-live="polite">{monthFormatter.format(new Date(`${month}-01T12:00:00Z`))}</h2>
@@ -125,6 +128,7 @@ export default function Calendario({ user }) {
         onEdit={openModal}
         onDelete={(item) => { setMessage(""); setDeleting(item); }}
       />
+      </>}
       {modal && <ReservationModal user={user} reserva={modal.reserva} reservas={reservas} initialDate={selectedDate} initialSpace={spaceFilter === "todos" ? "" : spaceFilter} onSave={handleSave} onClose={() => setModal(null)} />}
       {deleting && <DeleteReservationModal reserva={deleting} onConfirm={handleDelete} onClose={() => setDeleting(null)} />}
     </div>
