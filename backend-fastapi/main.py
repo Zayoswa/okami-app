@@ -91,3 +91,32 @@ async def get_roles():
 async def get_roles():
         response = supabase.table("espacio").select("*").execute()
         return response.data
+
+@app.get("/sign_up")
+def sign_up():
+    response = supa.auth.sign_up(email="testcorreo@gmail.com",
+                                 password="testsupabasenow")
+    return response.get("access_token")
+
+@app.get("/sign_out")
+def sign_out():
+    supabase = init_supabase()
+    response = supabase.auth.sign_out()
+    return "success"
+
+@app.get("/sign_in")
+def sign_in():
+    supabase = init_supabase()
+    response = supabase.auth.sign_in_with_password({"email":"testcorreo@gmail.com", "password": "testsupabasenow"})
+    return res.get("access_token")
+
+@app.get("/reset_password")
+def reset_password():
+    supabase = init_supabase()
+    reset_password = client.auth.reset_password_email('valid.email@supabase.to',{ 
+                                                    'redirect_to':'http://example.com/account/update-password'})
+    return res.get("")
+@app.get("/confirm_password")
+def confirm_password():
+    supabase = init_supabase()
+    response = supabase.auth.update_user({'password':"new_password"})
