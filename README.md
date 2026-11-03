@@ -2,7 +2,7 @@
 
 Aplicación web para coordinar las reservas y los espacios de trabajo del estudio de tatuajes Okami. Centraliza la información de las sesiones y facilita la organización del administrador y los tatuadores.
 
-**Estado del proyecto:** prototipo funcional para pruebas locales. Este avance utiliza datos mockup y guarda los cambios de las reservas en el navegador. El acceso de usuarios está implementado con Supabase Auth y requiere configurar el proyecto. Las reservas todavía no están conectadas a la base de datos.
+**Estado del proyecto:** acceso y reservas mediante Supabase. Para activar las reservas en una instalación existente, sigue la [guía de reservas reales](docs/reservas-reales.md).
 
 **Configuración del acceso cerrado:** seguir [la guía de activación](docs/acceso-cerrado.md), aplicar la migración revisada y crear al primer administrador antes de probar el login.
 
@@ -12,7 +12,7 @@ Aplicación web para coordinar las reservas y los espacios de trabajo del estudi
 - Creación y edición de reservas mediante formularios en un modal.
 - Eliminación de reservas con un modal de confirmación.
 - Registro de cliente, tatuador, precio, espacio, fecha, hora de inicio y término, estado y fecha de creación.
-- Estados de reserva: Pendiente, Completado y Cancelado.
+- Estados de reserva: Pendiente, Confirmada, Completado y Cancelado.
 - Filtros por estado y fecha: hoy, últimos siete días y mes actual.
 - Indicadores de total, completadas, canceladas y pendientes que se actualizan con los filtros.
 - Listado paginado con siete reservas por página.
@@ -35,7 +35,7 @@ El administrador puede gestionar todas las reservas. El tatuador puede gestionar
 | Interfaz | React 19, React Router, Vite y CSS |
 | API local | Python, FastAPI y Uvicorn |
 | Datos de prueba | Archivos JSON |
-| Persistencia de reservas | localStorage del navegador |
+| Persistencia de reservas | PostgreSQL en Supabase |
 | Verificación | ESLint y pruebas con Node.js |
 
 ## Requisitos
@@ -154,9 +154,7 @@ Los datos iniciales están en `frontend_react/src/data`: reservas, ejemplos hist
 
 El resumen de ocupación cuenta todas las reservas pendientes asignadas a cada espacio. La validación aplica ese límite y también comprueba las sesiones que se superponen en fecha y horario. Las reservas canceladas no ocupan cupos.
 
-Las modificaciones se guardan bajo la clave `okami.reservas.v1` en `localStorage`; no modifican los archivos JSON ni se comparten entre navegadores o equipos. Para recuperar los datos iniciales, elimina esa clave desde las herramientas de desarrollo del navegador y recarga la página. Esto elimina los cambios locales de las reservas.
-
-Las credenciales mockup se encuentran en `backend-fastapi/data/usuariosMock.json`. Las operaciones de usuarios requieren autenticación y autorización del servidor. Las reservas siguen siendo locales y su autorización remota se implementará al conectarlas.
+La agenda, los espacios y las reservas se consultan desde Supabase. Las reservas antiguas del navegador no se importan.
 
 ## Estructura del proyecto
 
@@ -170,7 +168,7 @@ okami-app/
 │   ├── src/
 │   │   ├── components/       # Tarjetas, modales, agenda y menú
 │   │   ├── config/           # API y navegación por rol
-│   │   ├── data/             # Reservas, tatuadores y espacios mockup
+│   │   ├── data/             # Catálogos de presentación
 │   │   ├── hooks/            # Estado de reservas y manejo de modales
 │   │   ├── pages/            # Login, reservas y calendario
 │   │   └── utils/            # Filtros, fechas, permisos y capacidad
@@ -199,8 +197,7 @@ El resultado se genera en `frontend_react/dist`. Para revisarlo localmente, ejec
 
 ## Alcance pendiente
 
-- Conexión a una base de datos para compartir y conservar la información de forma centralizada.
-- Integración remota de reservas con autorización y validación transaccional.
+- Alta y gestión de clientes desde la aplicación.
 - Desarrollo de los módulos marcados como «Proximamente».
 
 Este repositorio presenta el avance funcional del flujo de reservas y la coordinación de espacios; todavía no corresponde a una versión lista para producción.

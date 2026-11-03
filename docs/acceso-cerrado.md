@@ -37,9 +37,7 @@ Si la cuenta ya existía antes del trigger, crear primero su fila `usuarios` con
 
 Los tokens se conservan en sessionStorage de la pestaña y se renuevan al expirar. Cada solicitud protegida verifica la identidad con Supabase y consulta `activo` y rol en la base de datos. No se comparte un cliente autenticado global entre solicitudes. El cierre remoto revoca la renovación; un JWT ya emitido puede seguir siendo válido hasta expirar. La desactivación se comprueba en cada operación de esta API.
 
-Las reservas y espacios de la interfaz continúan siendo locales. No se importan mocks ni se cambian sus reglas. Las antiguas rutas sin autenticación para clientes/documentos/espacios se retiraron hasta implementar su contrato y permisos; no se sustituyen por lecturas con privilegios elevados.
-
-El cambio de nombre a cuentas reales puede dejar reservas mock sin propietario coincidente. No reasignarlas por nombre como migración de producción: la próxima integración debe usar UUID reales.
+El catálogo de espacios se lee desde Supabase mediante `GET /api/espacios` para ambos roles. La carga inicial está en `backend-fastapi/migrations/002_espacios_iniciales.sql`. Para activar la agenda compartida consulta [Reservas reales](reservas-reales.md). No se importan reservas del navegador.
 
 La invitación es la aprobación del administrador. No se agregó una lista de espera. Los roles solo se modifican administrativamente. La migración restringe acceso directo a perfiles; revisar las políticas y privilegios de las demás tablas antes de conectar las reservas.
 

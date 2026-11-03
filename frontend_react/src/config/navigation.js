@@ -1,7 +1,7 @@
 export const navigation = [
   { id: "dashboard", label: "Dashboard Gerencial (Proximamente)", comingSoon: true, roles: ["admin"] },
   { id: "reservas", path: "/reservas", label: "Reservas Generales", roles: ["admin"] },
-  { id: "mis-reservas", path: "/mis-reservas", label: "Mis Reservas", roles: ["tatuador"] },
+  { id: "mis-reservas", path: "/mis-reservas", label: "Mis reservas", roles: ["tatuador"] },
   { id: "calendario", path: "/calendario", label: "Calendario", roles: ["admin", "tatuador"] },
   { id: "tatuadores", path: "/tatuadores", label: "Tatuadores", roles: ["admin"] },
   { id: "alertas", label: "Alertas (Proximamente)", comingSoon: true, roles: ["admin", "tatuador"] },

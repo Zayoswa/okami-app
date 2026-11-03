@@ -6,6 +6,15 @@ export function todayInSantiago(now = new Date()) {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
+const santiagoTime = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "America/Santiago", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+});
+
+export function isFutureReservationStart(date, time, now = new Date()) {
+  const today = todayInSantiago(now);
+  return date > today || (date === today && time > santiagoTime.format(now));
+}
+
 export function monthDays(month) {
   const first = new Date(`${month}-01T12:00:00Z`);
   const offset = (first.getUTCDay() + 6) % 7;

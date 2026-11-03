@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
+import { authRequest } from "../services/authService.js";
 import { reservationsRepository } from "../services/reservationsRepository.js";
 
 export default function useReservations(user, repository = reservationsRepository) {
+  const [catalogos, setCatalogos] = useState({ clientes: [], tatuadores: [] });
+  const [espacios, setEspacios] = useState([]);
   const [reservas, setReservas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -11,8 +14,9 @@ export default function useReservations(user, repository = reservationsRepositor
     let active = true;
     async function load() {
       try {
-        const rows = await repository.list(user);
-        if (active) setReservas(rows);
+        const [rows, spaces, catalogs] = await Promise.all([repository.list(user), authRequest("/api/espacios"), repository.catalogs()]);
+        if (!spaces.length) throw new Error("No hay espacios configurados en el estudio.");
+        if (active) { setReservas(rows); setEspacios(spaces); setCatalogos(catalogs); }
       } catch (cause) {
         if (active) setError(cause instanceof Error ? cause.message : "No se pudieron cargar las reservas.");
       } finally {
@@ -30,14 +34,19 @@ export default function useReservations(user, repository = reservationsRepositor
   }
 
   async function saveReservation(reserva, editingId) {
-    const updated = await repository.save(user, reserva, editingId);
-    setReservas(updated);
+    await repository.save(user, reserva, editingId, espacios);
+    await refreshAfterMutation();
   }
 
   async function deleteReservation(id) {
-    const updated = await repository.remove(user, id);
-    setReservas(updated);
+    await repository.remove(user, id);
+    await refreshAfterMutation();
   }
 
-  return { reservas, loading, error, reload, saveReservation, deleteReservation };
+  async function refreshAfterMutation() {
+    try { setReservas(await repository.list(user)); }
+    catch { setError("El cambio se guardó, pero no se pudo actualizar la agenda. Pulsa Reintentar."); }
+  }
+
+  return { reservas, espacios, catalogos, loading, error, reload, saveReservation, deleteReservation };
 }

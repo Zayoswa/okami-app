@@ -6,6 +6,18 @@ import main
 
 
 class AccessTests(unittest.TestCase):
+    @patch('main.client')
+    def test_spaces_requires_session_and_serves_both_roles(self, client):
+        self.assertEqual(self.api.get('/api/espacios').status_code, 401)
+        query = client.return_value.table.return_value.select.return_value.order.return_value
+        query.execute.return_value.data = [{'id':42,'nombre':'Espacio A','capacidad':3}]
+        for role in ('admin', 'tatuador'):
+            with self.subTest(role=role):
+                main.app.dependency_overrides[main.get_current_user] = lambda: {'role':role}
+                response = self.api.get('/api/espacios')
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json(), [{'id':'A','idBaseDatos':'42','nombre':'Espacio A','capacidadMaxima':3}])
+
     @patch.dict('os.environ', {'SUPABASE_URL': 'https://example.supabase.co', 'SUPABASE_SECRET_KEY': 'sb_secret_example'})
     def test_supabase_client_options_are_compatible(self):
         # Construye el cliente real sin enviar solicitudes: detecta opciones incompatibles.

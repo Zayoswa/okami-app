@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Reservas from "./pages/Reservas";
+import MisReservas from "./pages/MisReservas";
 import Calendario from "./pages/Calendario";
 import { homeForUser } from "./utils/access";
 import ModuleAccess from "./components/ModuleAccess";
@@ -47,7 +48,7 @@ function App() {
       >
         <Route index element={<Navigate to={homeForUser(user)} replace />} />
         <Route path="reservas" element={<ModuleAccess user={user} moduleId="reservas"><Reservas user={user} /></ModuleAccess>} />
-        <Route path="mis-reservas" element={<ModuleAccess user={user} moduleId="mis-reservas"><Reservas user={user} personal /></ModuleAccess>} />
+        <Route path="mis-reservas" element={<ModuleAccess user={user} moduleId="mis-reservas"><MisReservas user={user} /></ModuleAccess>} />
         <Route path="tatuadores" element={<ModuleAccess user={user} moduleId="tatuadores"><Tatuadores /></ModuleAccess>} />
         <Route path="calendario" element={<ModuleAccess user={user} moduleId="calendario"><Calendario user={user} /></ModuleAccess>} />
       </Route>

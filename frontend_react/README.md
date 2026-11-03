@@ -17,14 +17,7 @@ La API local se configura en `.env.development`. Para personalizarla, copiar
 - Crear, editar y borrar con confirmación, filtros, KPI y paginación de siete reservas.
 - Sesiones con fecha, inicio, término y espacio; agenda mensual y columnas por espacio.
 
-Los datos iniciales están en `src/data`. Los cambios se guardan en el navegador,
-en `localStorage`, usando `okami.reservas.v1`; los JSON no se modifican.
-Los ejemplos incluyen 80 reservas históricas adicionales y un catálogo de 30
-tatuadores. Se conservan al desactivar el módulo Dashboard Gerencial.
-
-La capacidad del resumen cuenta todas las reservas pendientes por espacio.
-También se validan sesiones que se superponen. Las restricciones por rol son
-locales para reservas; el acceso de usuarios usa Supabase Auth y se configura según `../docs/acceso-cerrado.md`.
+Las reservas, espacios y catálogos se consultan por FastAPI. Sigue la [guía de activación](../docs/reservas-reales.md). La aplicación ya no carga los datos de demostración ni lee reservas de localStorage.
 
 ## Código
 

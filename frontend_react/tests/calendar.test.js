@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { monthDays, shiftMonth, todayInSantiago } from "../src/utils/calendar.js";
+import { isFutureReservationStart, monthDays, shiftMonth, todayInSantiago } from "../src/utils/calendar.js";
 
 test("el calendario empieza el lunes y contiene todos los días del mes", () => {
   const days = monthDays("2026-10");
@@ -19,4 +19,13 @@ test("el calendario respeta años bisiestos y cambios de año", () => {
 
 test("Hoy usa la fecha de Santiago", () => {
   assert.equal(todayInSantiago(new Date("2026-10-05T01:00:00Z")), "2026-10-04");
+});
+
+test("el inicio debe ser posterior al minuto actual de Santiago", () => {
+  const now = new Date("2026-11-04T01:30:00Z");
+  assert.equal(isFutureReservationStart("2026-07-10", "23:59", now), false);
+  assert.equal(isFutureReservationStart("2026-11-03", "22:29", now), false);
+  assert.equal(isFutureReservationStart("2026-11-03", "22:30", now), false);
+  assert.equal(isFutureReservationStart("2026-11-03", "22:31", now), true);
+  assert.equal(isFutureReservationStart("2026-11-04", "00:00", now), true);
 });

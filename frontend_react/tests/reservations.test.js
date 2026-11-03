@@ -2,9 +2,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { filterReservations } from "../src/utils/filterReservations.js";
 import { spaceOccupancy, reservationCapacityError } from "../src/utils/spaceOccupancy.js";
-import { loadReservations, storeReservations } from "../src/utils/reservationStorage.js";
-import initialMock from "../src/data/reservasMock.json" with { type: "json" };
-import reportMock from "../src/data/reservasDashboardMock.json" with { type: "json" };
 
 function reservation(id, overrides = {}) {
   return {
@@ -39,28 +36,4 @@ test("el límite de pendientes bloquea distintos horarios y permite liberar cupo
   assert.equal(reservationCapacityError(rows, rows[0], space, 1), "");
   assert.equal(reservationCapacityError(rows, { ...candidate, estado: "Cancelado" }, space), "");
   assert.equal(reservationCapacityError([rows[0], { ...rows[1], estado: "Completado" }], candidate, space), "");
-});
-
-test("la persistencia conserva cambios y migra reservas antiguas", () => {
-  let value = null;
-  const storage = { getItem: () => value, setItem: (_key, data) => { value = data; } };
-  const old = reservation(99);
-  delete old.horaInicio;
-  delete old.horaFin;
-  old.hora = "15:00";
-  storeReservations([old], storage);
-  const restored = loadReservations(storage);
-  assert.equal(restored[0].horaInicio, "15:00");
-  assert.equal(restored[0].horaFin, "17:00");
-  assert.equal(restored[0].id, 99);
-  storeReservations([], storage);
-  assert.deepEqual(loadReservations(storage), []);
-});
-
-test("datos corruptos no rompen la página y fallos de escritura se informan", () => {
-  const invalidRows = [reservation(1, { horaInicio: "incorrecto" })];
-  for (const value of ["JSON roto", JSON.stringify(invalidRows), JSON.stringify([reservation(1), reservation(1)])]) {
-    assert.equal(loadReservations({ getItem: () => value }).length, initialMock.length + reportMock.length);
-  }
-  assert.throws(() => storeReservations([], { setItem: () => { throw new Error("Sin espacio"); } }), /No se pudieron guardar/);
 });

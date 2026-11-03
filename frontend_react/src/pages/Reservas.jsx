@@ -1,6 +1,5 @@
 import { useState } from "react";
 import useReservations from "../hooks/useReservations";
-import espacios from "../data/espacios.json";
 import ReservationCard from "../components/ReservationCard";
 import CreateReservationButton from "../components/CreateReservationButton";
 import "./Reservas.css";
@@ -14,7 +13,7 @@ import { ownsReservation } from "../utils/access";
 const pageSize = 7;
 
 export default function Reservas({ user, personal = false }) {
-    const { reservas, loading, error, reload, saveReservation: persistReservation, deleteReservation: removeReservation } = useReservations(user);
+    const { reservas, espacios, catalogos, loading, error, reload, saveReservation: persistReservation, deleteReservation: removeReservation } = useReservations(user);
     const [modalOpen, setModalOpen] = useState(false);
     const [editingReservation, setEditingReservation] = useState(null);
     const [deletingReservation, setDeletingReservation] = useState(null);
@@ -59,7 +58,7 @@ export default function Reservas({ user, personal = false }) {
         <div className="reservas-header">
             <p className="reservas-label">RESERVAS</p>
 
-            <h1>{personal ? "Mis Reservas" : "Reservas del estudio"}</h1>
+            <h1>{personal ? "Mis reservas" : "Reservas del estudio"}</h1>
 
             <p className="reservas-description">
             {personal ? "Consulta y gestiona tus reservas en el estudio." : "Visualiza las reservas actualmente registradas."}
@@ -86,7 +85,7 @@ export default function Reservas({ user, personal = false }) {
             </div>
         </div>
 
-        {loading && <p role="status">Cargando reservas…</p>}
+        {loading && <p role="status">Cargando reservas y espacios…</p>}
         {error && <div role="alert"><p>{error}</p><button type="button" className="reservation-button" onClick={reload}>Reintentar</button></div>}
         {!loading && !error && <>
         <section className="reservas-kpis" aria-label="Resumen de reservas filtradas" aria-live="polite">
@@ -127,7 +126,7 @@ export default function Reservas({ user, personal = false }) {
         </p>
         <section className="reservas-container">
             {visibleReservations.map((reserva) => (
-            <ReservationCard key={reserva.id} reserva={reserva} onEdit={openReservationModal} onDelete={requestDelete} />
+            <ReservationCard espacios={espacios} key={reserva.id} reserva={reserva} onEdit={openReservationModal} onDelete={requestDelete} />
             ))}
             {filteredReservations.length === 0 && <p className="empty-state">{scopedReservations.length === 0 ? "No hay reservas registradas." : "No hay reservas que coincidan con los filtros seleccionados."}</p>}
         </section>
@@ -139,7 +138,7 @@ export default function Reservas({ user, personal = false }) {
             </nav>
         )}
         </>}
-        {modalOpen && <ReservationModal user={user} reserva={editingReservation} reservas={reservas} onSave={saveReservation} onClose={() => setModalOpen(false)} />}
+        {modalOpen && <ReservationModal catalogos={catalogos} espacios={espacios} user={user} reserva={editingReservation} reservas={reservas} onSave={saveReservation} onClose={() => setModalOpen(false)} />}
         {deletingReservation && <DeleteReservationModal reserva={deletingReservation} onConfirm={deleteReservation} onClose={() => setDeletingReservation(null)} />}
         </div>
     );

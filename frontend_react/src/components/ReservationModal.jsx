@@ -1,20 +1,24 @@
 import { useState } from "react";
 import useModalDialog from "../hooks/useModalDialog";
-import espacios from "../data/espacios.json";
 import { reservationStatuses } from "../data/reservationStatuses";
+import { isFutureReservationStart, todayInSantiago } from "../utils/calendar";
 import { overlappingReservations, spaceOccupancy, pendingSpaceOccupancy, reservationCapacityError } from "../utils/spaceOccupancy";
 
-export default function ReservationModal({ user, reserva, reservas, initialDate = "", initialSpace = "", onSave, onClose }) {
+export default function ReservationModal({ espacios, catalogos, user, reserva, reservas, initialDate = "", initialSpace = "", onSave, onClose }) {
   const dialogRef = useModalDialog();
+  const [requestId] = useState(() => reserva?.id ?? crypto.randomUUID());
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [fecha, setFecha] = useState(reserva?.fecha ?? initialDate);
+  const today = todayInSantiago();
+  const [fecha, setFecha] = useState(reserva?.fecha ?? (initialDate >= today ? initialDate : today));
   const [horaInicio, setHoraInicio] = useState(reserva?.horaInicio ?? "");
   const [horaFin, setHoraFin] = useState(reserva?.horaFin ?? "");
   const [selectedSpace, setSelectedSpace] = useState(reserva?.espacioId ?? initialSpace);
   const [estado, setEstado] = useState(reserva?.estado ?? "Pendiente");
   const espacio = espacios.find((item) => item.id === selectedSpace);
   const hasSchedule = Boolean(fecha && horaInicio && horaFin && horaFin > horaInicio);
+  const scheduleChanged = !reserva || fecha !== reserva.fecha || horaInicio !== reserva.horaInicio || horaFin !== reserva.horaFin;
+  const pastStart = Boolean(fecha && horaInicio && scheduleChanged && !isFutureReservationStart(fecha, horaInicio));
   const ocupacion = spaceOccupancy(reservas, selectedSpace, fecha, horaInicio, horaFin, reserva?.id);
   const pendientes = pendingSpaceOccupancy(reservas, selectedSpace, reserva?.id);
   const totalFull = espacio && pendientes >= espacio.capacidadMaxima;
@@ -30,8 +34,8 @@ export default function ReservationModal({ user, reserva, reservas, initialDate 
     if (saving) return;
     const form = event.currentTarget;
     const data = new FormData(form);
-    const cliente = data.get("cliente").trim();
-    const tatuador = data.get("tatuador").trim();
+    const clienteId = data.get("clienteId");
+    const tatuadorId = user.role === "tatuador" ? user.id : data.get("tatuadorId");
     const precio = Number(data.get("precio"));
     const espacioId = data.get("espacioId");
     const selected = espacios.find((item) => item.id === espacioId);
@@ -43,28 +47,31 @@ export default function ReservationModal({ user, reserva, reservas, initialDate 
       setError("La hora de término debe ser posterior a la hora de inicio, dentro del mismo día.");
       return;
     }
+    if (scheduleChanged && !isFutureReservationStart(fecha, horaInicio)) {
+      setError("La reserva debe comenzar después de la fecha y hora actuales de Santiago.");
+      return;
+    }
     const validationError = reservationCapacityError(reservas, { estado: data.get("estado"), fecha, horaInicio, horaFin }, selected, reserva?.id);
     if (validationError) {
       setError(validationError);
       return;
     }
-    if (!cliente || !tatuador || !Number.isSafeInteger(precio) || precio < 0) {
-      setError("Ingresa nombres válidos y un precio entero igual o mayor a cero.");
+    if (!clienteId || !tatuadorId || !Number.isSafeInteger(precio) || precio < 0) {
+      setError("Selecciona cliente y tatuador e ingresa un precio entero igual o mayor a cero.");
       return;
     }
     setSaving(true);
     try {
       await onSave({
-        id: reserva?.id ?? crypto.randomUUID(),
-        cliente,
-        tatuador,
+        id: requestId,
+        clienteId,
+        tatuadorId,
         precio,
         espacioId,
         fecha: data.get("fecha"),
         horaInicio,
         horaFin,
         estado: data.get("estado"),
-        fechaCreacion: reserva?.fechaCreacion ?? new Date().toISOString(),
       });
       onClose();
     } catch (saveError) {
@@ -83,14 +90,27 @@ export default function ReservationModal({ user, reserva, reservas, initialDate 
       <p className="reservation-modal-description">{reserva ? "Actualiza los datos del ticket. Su fecha de creación se conserva." : "Completa los datos del ticket. Su fecha de creación se registra automáticamente."}</p>
       <form className="reservation-form" onSubmit={handleSubmit}>
         <fieldset disabled={saving} style={{ display: "contents" }}>
-        <label>Nombre del cliente<input name="cliente" defaultValue={reserva?.cliente ?? ""} required maxLength={100} autoFocus /></label>
-        <label>Nombre del tatuador<input name="tatuador" defaultValue={user?.role === "tatuador" ? user.name : reserva?.tatuador ?? ""} readOnly={user?.role === "tatuador"} required maxLength={100} /></label>
-        <label>Fecha<input name="fecha" value={fecha} onChange={(event) => { setFecha(event.target.value); setError(""); }} type="date" required /></label>
+        <label>Cliente
+          <select name="clienteId" defaultValue={reserva?.clienteId ?? ""} required autoFocus>
+            <option value="" disabled>Selecciona un cliente existente</option>
+            {catalogos.clientes.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}
+          </select>
+        </label>
+        {user.role === "tatuador" ? <label>Tatuador<input value={user.name} readOnly /></label> : (
+          <label>Tatuador
+            <select name="tatuadorId" defaultValue={reserva?.tatuadorId ?? ""} required>
+              <option value="" disabled>Selecciona un tatuador activo</option>
+              {catalogos.tatuadores.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}
+            </select>
+          </label>
+        )}
+        <label>Fecha<input name="fecha" value={fecha} onChange={(event) => { setFecha(event.target.value); setError(""); }} type="date" min={reserva?.fecha && reserva.fecha < today ? undefined : today} required /></label>
         <div className="reservation-form-row">
           <label>Hora de inicio<input name="horaInicio" value={horaInicio} onChange={(event) => { setHoraInicio(event.target.value); setError(""); }} type="time" required /></label>
           <label>Hora de término<input name="horaFin" value={horaFin} onChange={(event) => { setHoraFin(event.target.value); setError(""); }} type="time" required /></label>
         </div>
         {horaInicio && horaFin && horaFin <= horaInicio && <p className="reservation-form-error" role="alert">La hora de término debe ser posterior a la de inicio.</p>}
+        {pastStart && <p className="reservation-form-error" role="alert">Selecciona un inicio posterior a la fecha y hora actuales de Santiago.</p>}
         <label>Espacio
           <select name="espacioId" value={selectedSpace} onChange={(event) => { setSelectedSpace(event.target.value); setError(""); }} className={isFull ? "reservation-space-full" : ""} aria-describedby="space-occupancy" required>
             <option value="" disabled>Selecciona un espacio</option>
@@ -123,7 +143,7 @@ export default function ReservationModal({ user, reserva, reservas, initialDate 
         {error && <p className="reservation-form-error" role="alert">{error}</p>}
         <div className="reservation-modal-actions">
           <button type="button" className="reservation-button reservation-button-secondary" onClick={onClose}>Cancelar</button>
-          <button type="submit" className="reservation-button" disabled={saving || Boolean(capacityError)}>{saving ? "Guardando…" : reserva ? "Guardar cambios" : "Guardar reserva"}</button>
+          <button type="submit" className="reservation-button" disabled={saving || pastStart || Boolean(capacityError)}>{saving ? "Guardando…" : reserva ? "Guardar cambios" : "Guardar reserva"}</button>
         </div>
         </fieldset>
       </form>

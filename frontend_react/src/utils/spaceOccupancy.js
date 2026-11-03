@@ -36,13 +36,3 @@ export function reservationCapacityError(reservas, reserva, espacio, excludedId)
   }
   return "";
 }
-
-export function migrateReservationHours(item) {
-  const { hora, ...reserva } = item;
-  const horaInicio = item.horaInicio ?? hora;
-  const [hours, minutes] = horaInicio.split(":").map(Number);
-  // Las reservas antiguas reciben dos horas, limitadas al mismo día.
-  const end = Math.min(hours * 60 + minutes + 120, 23 * 60 + 59);
-  const horaFin = item.horaFin ?? `${String(Math.floor(end / 60)).padStart(2, "0")}:${String(end % 60).padStart(2, "0")}`;
-  return { ...reserva, horaInicio, horaFin };
-}

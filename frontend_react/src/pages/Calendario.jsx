@@ -1,5 +1,4 @@
 import { useState } from "react";
-import espacios from "../data/espacios.json";
 import { reservationStatuses } from "../data/reservationStatuses";
 import useReservations from "../hooks/useReservations";
 import ReservationModal from "../components/ReservationModal";
@@ -16,7 +15,7 @@ const weekdays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
 export default function Calendario({ user }) {
   const today = todayInSantiago();
-  const { reservas, loading, error, reload, saveReservation, deleteReservation } = useReservations(user);
+  const { reservas, espacios, catalogos, loading, error, reload, saveReservation, deleteReservation } = useReservations(user);
   const [month, setMonth] = useState(today.slice(0, 7));
   const [selectedDate, setSelectedDate] = useState(today);
   const [spaceFilter, setSpaceFilter] = useState("todos");
@@ -84,7 +83,7 @@ export default function Calendario({ user }) {
         <button type="button" className="reservation-button" disabled={loading || Boolean(error)} onClick={() => openModal()}>Crear reserva</button>
       </div>
       {message && <p className="reservation-success" role="status">{message}</p>}
-      {loading && <p role="status">Cargando reservas…</p>}
+      {loading && <p role="status">Cargando reservas y espacios…</p>}
       {error && <div role="alert"><p>{error}</p><button type="button" className="reservation-button" onClick={reload}>Reintentar</button></div>}
       {!loading && !error && <>
       <section className="calendar-month" aria-labelledby="calendar-month-title">
@@ -129,7 +128,7 @@ export default function Calendario({ user }) {
         onDelete={(item) => { setMessage(""); setDeleting(item); }}
       />
       </>}
-      {modal && <ReservationModal user={user} reserva={modal.reserva} reservas={reservas} initialDate={selectedDate} initialSpace={spaceFilter === "todos" ? "" : spaceFilter} onSave={handleSave} onClose={() => setModal(null)} />}
+      {modal && <ReservationModal catalogos={catalogos} espacios={espacios} user={user} reserva={modal.reserva} reservas={reservas} initialDate={selectedDate} initialSpace={spaceFilter === "todos" ? "" : spaceFilter} onSave={handleSave} onClose={() => setModal(null)} />}
       {deleting && <DeleteReservationModal reserva={deleting} onConfirm={handleDelete} onClose={() => setDeleting(null)} />}
     </div>
   );

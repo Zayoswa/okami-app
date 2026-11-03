@@ -1,4 +1,3 @@
-import espacios from "../data/espacios.json";
 
 const priceFormatter = new Intl.NumberFormat("es-CL", {
     style: "currency",
@@ -15,7 +14,7 @@ const creationFormatter = new Intl.DateTimeFormat("es-CL", {
     hour: "2-digit", minute: "2-digit", hourCycle: "h23",
 });
 
-export default function ReservationCard({ reserva, onEdit, onDelete }) {
+export default function ReservationCard({ espacios, reserva, onEdit, onDelete }) {
     const espacio = espacios.find((item) => item.id === reserva.espacioId);
     return (
         <article className="reserva-card">

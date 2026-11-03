@@ -1,7 +1,10 @@
-"""API de acceso cerrado. Las reservas continúan usando el repositorio local."""
+"""API de acceso cerrado y reservas compartidas en Supabase."""
 import os
+import re
 import httpx
 from pathlib import Path
+from datetime import date, time
+from typing import Literal
 from uuid import UUID
 
 from dotenv import load_dotenv
@@ -9,6 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
+from postgrest.exceptions import APIError
 from supabase import create_client
 from supabase.lib.client_options import SyncClientOptions
 
@@ -17,7 +21,7 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5173", "http://127.0.0.1:5174"],
-    allow_methods=["GET", "POST", "PATCH"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Authorization", "Content-Type"],
 )
 bearer = HTTPBearer(auto_error=False)
@@ -99,6 +103,21 @@ class InviteRequest(BaseModel):
 
 class ActiveRequest(BaseModel):
     activo: bool
+
+
+class ReservationRequest(BaseModel):
+    clienteId: UUID
+    tatuadorId: UUID
+    espacioId: int = Field(gt=0)
+    precio: int = Field(ge=0, le=9007199254740991)
+    fecha: date
+    horaInicio: str = Field(pattern=r"^([01][0-9]|2[0-3]):[0-5][0-9]$")
+    horaFin: str = Field(pattern=r"^([01][0-9]|2[0-3]):[0-5][0-9]$")
+    estado: Literal['Pendiente', 'Confirmada', 'Cancelado', 'Completado']
+
+
+class ReservationCreate(ReservationRequest):
+    id: UUID
 
 
 def session_response(result):
@@ -193,6 +212,27 @@ def modalities(user=Depends(require_admin)):
         raise HTTPException(503, "No se pudieron consultar las modalidades.") from exc
 
 
+@app.get("/api/espacios")
+def spaces(user=Depends(get_current_user)):
+    try:
+        rows = client(admin=True).table("espacio").select("id,nombre,capacidad").order("nombre").execute().data
+        result = []
+        used = set()
+        for row in rows:
+            # Compatibilidad con las reservas locales, que guardan A–F.
+            legacy = re.fullmatch(r"Espacio ([A-F])", row["nombre"], re.IGNORECASE)
+            code = legacy[1].upper() if legacy else f"db:{row['id']}"
+            if code in used or not isinstance(row["capacidad"], int) or row["capacidad"] < 1:
+                raise HTTPException(503, "Hay espacios duplicados o con capacidad inválida. Revisa el catálogo.")
+            used.add(code)
+            result.append({"id": code, "idBaseDatos": str(row["id"]), "nombre": row["nombre"], "capacidadMaxima": row["capacidad"]})
+        return result
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(503, "No se pudieron cargar los espacios de Supabase.") from exc
+
+
 @app.post("/api/usuarios/invitaciones", status_code=201)
 def invite(data: InviteRequest, admin=Depends(require_admin)):
     nombre = data.nombre.strip()
@@ -225,3 +265,73 @@ def activity(user_id: UUID, data: ActiveRequest, admin=Depends(require_admin)):
         raise HTTPException(403, "Este módulo solo modifica el acceso de tatuadores.")
     db.table("usuarios").update({"activo": data.activo}).eq("id", str(user_id)).execute()
     return {"ok": True}
+
+
+def reservation_rpc(name, params):
+    try:
+        return client(admin=True).rpc(name, params).execute().data
+    except HTTPException:
+        raise
+    except APIError as exc:
+        status = {'42501': 403, '22023': 422, 'P0002': 404, 'P0001': 409, '23505': 409}.get(exc.code)
+        if status and exc.code != '42501':
+            raise HTTPException(status, exc.message) from exc
+        if status == 403:
+            raise HTTPException(403, 'No tienes permiso para realizar esta operación.') from exc
+        raise HTTPException(503, 'No se pudo acceder a las reservas. Comprueba la migración de reservas en Supabase.') from exc
+    except Exception as exc:
+        raise HTTPException(503, 'No se pudo comunicar con la base de datos de reservas.') from exc
+
+
+@app.get('/api/reservas')
+def list_reservations(user=Depends(get_current_user)):
+    return reservation_rpc('okami_listar_reservas', {'p_actor': user['id']})
+
+
+@app.get('/api/reservas/catalogos')
+def reservation_catalogs(user=Depends(get_current_user)):
+    try:
+        db = client(admin=True)
+        customers = []
+        for offset in range(0, 100000, 500):
+            page = db.table('cliente').select('id,nombre').not_.is_('nombre', 'null').order('nombre').order('id').range(offset, offset + 499).execute().data
+            customers.extend(page)
+            if len(page) < 500:
+                break
+        if user['role'] == 'tatuador':
+            artists = [{'id': user['id'], 'nombre': user['name']}]
+        else:
+            role_ids = [row['id'] for row in db.table('rol').select('id,nombre').execute().data
+                        if row['nombre'].strip().lower() == 'tatuador']
+            artists = db.table('usuarios').select('id,nombre').in_('rol', role_ids).eq('activo', True).order('nombre').execute().data if role_ids else []
+        return {'clientes': customers, 'tatuadores': artists}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(503, 'No se pudieron cargar los clientes y tatuadores.') from exc
+
+
+def write_reservation(operation, reservation_id, data, user):
+    params = {'p_actor': user['id'], 'p_operacion': operation, 'p_id': str(reservation_id)}
+    if data is not None:
+        if time.fromisoformat(data.horaFin) <= time.fromisoformat(data.horaInicio):
+            raise HTTPException(422, 'La hora de término debe ser posterior a la de inicio.')
+        params.update(p_cliente=str(data.clienteId), p_tatuador=str(data.tatuadorId), p_espacio=data.espacioId,
+                      p_precio=data.precio, p_inicio=f'{data.fecha}T{data.horaInicio}',
+                      p_fin=f'{data.fecha}T{data.horaFin}', p_estado=data.estado)
+    return {'id': reservation_rpc('okami_mutar_reserva', params)}
+
+
+@app.post('/api/reservas', status_code=201)
+def create_reservation(data: ReservationCreate, user=Depends(get_current_user)):
+    return write_reservation('crear', data.id, data, user)
+
+
+@app.patch('/api/reservas/{reservation_id}')
+def edit_reservation(reservation_id: UUID, data: ReservationRequest, user=Depends(get_current_user)):
+    return write_reservation('editar', reservation_id, data, user)
+
+
+@app.delete('/api/reservas/{reservation_id}')
+def delete_reservation(reservation_id: UUID, user=Depends(get_current_user)):
+    return write_reservation('borrar', reservation_id, None, user)
