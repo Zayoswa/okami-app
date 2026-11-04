@@ -19,3 +19,6 @@ frontend_react/dist/
 # OS
 .DS_Store
 Thumbs.db
+
+# Instalaciones accidentales en la raíz
+/node_modules/

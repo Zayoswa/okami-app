@@ -4,6 +4,7 @@ import useReservations from "../hooks/useReservations";
 import ReservationModal from "../components/ReservationModal";
 import DeleteReservationModal from "../components/DeleteReservationModal";
 import CalendarAgenda from "../components/CalendarAgenda";
+import LoadingScreen from "../components/LoadingScreen";
 import { monthDays, shiftMonth, todayInSantiago } from "../utils/calendar";
 import { canManageReservation } from "../utils/access";
 import "./Reservas.css";
@@ -83,7 +84,7 @@ export default function Calendario({ user }) {
         <button type="button" className="reservation-button" disabled={loading || Boolean(error)} onClick={() => openModal()}>Crear reserva</button>
       </div>
       {message && <p className="reservation-success" role="status">{message}</p>}
-      {loading && <p role="status">Cargando reservas y espacios…</p>}
+      {loading && <LoadingScreen message="Cargando reservas y espacios…" />}
       {error && <div role="alert"><p>{error}</p><button type="button" className="reservation-button" onClick={reload}>Reintentar</button></div>}
       {!loading && !error && <>
       <section className="calendar-month" aria-labelledby="calendar-month-title">

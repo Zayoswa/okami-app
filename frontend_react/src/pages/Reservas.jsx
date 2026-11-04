@@ -2,6 +2,7 @@ import { useState } from "react";
 import useReservations from "../hooks/useReservations";
 import ReservationCard from "../components/ReservationCard";
 import CreateReservationButton from "../components/CreateReservationButton";
+import LoadingScreen from "../components/LoadingScreen";
 import "./Reservas.css";
 import ReservationModal from "../components/ReservationModal";
 import DeleteReservationModal from "../components/DeleteReservationModal";
@@ -91,7 +92,7 @@ export default function Reservas({ user, personal = false }) {
             </div>
         </div>
 
-        {loading && <p role="status">Cargando reservas y espacios…</p>}
+        {loading && <LoadingScreen message="Cargando reservas y espacios…" />}
         {error && <div role="alert"><p>{error}</p><button type="button" className="reservation-button" onClick={reload}>Reintentar</button></div>}
         {!loading && !error && <>
         <section className="reservas-kpis" aria-label="Resumen de reservas filtradas" aria-live="polite">

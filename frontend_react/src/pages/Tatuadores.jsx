@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { authRequest } from "../services/authService";
+import LoadingScreen from "../components/LoadingScreen";
 import "./Tatuadores.css";
 export default function Tatuadores() {
   const [users, setUsers] = useState([]);
@@ -54,7 +55,7 @@ export default function Tatuadores() {
       <label>Modalidad<select required={modalities.length > 0} value={modalidad} onChange={e => setModalidad(e.target.value)}><option value="">Seleccionar</option>{modalities.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}</select></label>
       <button disabled={busy || loading}>{busy ? "Procesando…" : "Enviar invitación"}</button>
     </form>
-    <h2>Usuarios del estudio</h2>{loading ? <p>Cargando…</p> : users.length === 0 ? <p>No hay tatuadores para mostrar.</p> : <ul>{users.map(row => <li key={row.id}><div><strong>{row.nombre}</strong><span>{row.activo ? "Acceso habilitado" : "Acceso desactivado"}</span></div><button disabled={busy} onClick={() => setSelected(row)}>{row.activo ? "Desactivar" : "Activar"}</button></li>)}</ul>}
+    <h2>Usuarios del estudio</h2>{loading ? <LoadingScreen message="Cargando usuarios…" /> : users.length === 0 ? <p>No hay tatuadores para mostrar.</p> : <ul>{users.map(row => <li key={row.id}><div><strong>{row.nombre}</strong><span>{row.activo ? "Acceso habilitado" : "Acceso desactivado"}</span></div><button disabled={busy} onClick={() => setSelected(row)}>{row.activo ? "Desactivar" : "Activar"}</button></li>)}</ul>}
     <dialog ref={dialog} className="artists-dialog" aria-labelledby="activity-title" onCancel={event => { if (busy) event.preventDefault(); else setSelected(null); }}>{selected && <><h2 id="activity-title">{selected.activo ? "Desactivar" : "Activar"} acceso</h2><p>¿Confirmas el cambio de acceso de {selected.nombre}? Sus reservas se conservan.</p><button disabled={busy} onClick={() => setSelected(null)}>Cancelar</button><button disabled={busy} onClick={toggle}>Confirmar</button></>}</dialog>
   </section>;
 }

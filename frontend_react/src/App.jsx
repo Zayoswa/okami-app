@@ -1,16 +1,20 @@
-import { useEffect, useState } from "react";
+import { lazy, useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
-import Reservas from "./pages/Reservas";
-import MisReservas from "./pages/MisReservas";
-import Calendario from "./pages/Calendario";
 import { homeForUser } from "./utils/access";
 import ModuleAccess from "./components/ModuleAccess";
+import LoadingScreen from "./components/LoadingScreen";
 
 import { restoreSession, signOut } from "./services/authService";
-import Tatuadores from "./pages/Tatuadores";
 import Invitacion from "./pages/Invitacion";
+
+// Los módulos se cargan bajo demanda; mientras llega su código,
+// el <Suspense> de Dashboard muestra la pantalla de carga.
+const Reservas = lazy(() => import("./pages/Reservas"));
+const MisReservas = lazy(() => import("./pages/MisReservas"));
+const Calendario = lazy(() => import("./pages/Calendario"));
+const Tatuadores = lazy(() => import("./pages/Tatuadores"));
 
 function App() {
   const [user, setUser] = useState(null);
@@ -36,7 +40,7 @@ function App() {
   async function logout() {
     try { await signOut(); } finally { setUser(null); }
   }
-  if (loading) return <p role="status">Comprobando sesión…</p>;
+  if (loading) return <LoadingScreen fullScreen message="Comprobando sesión…" />;
   return (
     <> {error && <p role="alert">{error}</p>}<Routes>
       <Route path="/invitacion" element={<Invitacion setUser={setUser} />} />
