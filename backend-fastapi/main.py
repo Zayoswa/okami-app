@@ -8,7 +8,7 @@ from typing import Literal
 from uuid import UUID
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
@@ -106,7 +106,10 @@ class ActiveRequest(BaseModel):
 
 
 class ReservationRequest(BaseModel):
-    clienteId: UUID
+    clienteId: UUID | None = None
+    clienteNombre: str | None = Field(default=None, max_length=120)
+    # RUT completo con dígito verificador; se aceptan puntos, guion y espacios (ej. 12.345.678-K).
+    clienteRut: str | None = Field(default=None, max_length=16)
     tatuadorId: UUID
     espacioId: int = Field(gt=0)
     precio: int = Field(ge=0, le=9007199254740991)
@@ -215,7 +218,9 @@ def modalities(user=Depends(require_admin)):
 @app.get("/api/espacios")
 def spaces(user=Depends(get_current_user)):
     try:
-        rows = client(admin=True).table("espacio").select("id,nombre,capacidad").order("nombre").execute().data
+        db = client(admin=True)
+        states = {row["id"]: row["estado"].strip() for row in db.table("espacio_estados").select("id,estado").execute().data}
+        rows = db.table("espacio").select("id,nombre,capacidad,estado_id").order("nombre").execute().data
         result = []
         used = set()
         for row in rows:
@@ -225,7 +230,9 @@ def spaces(user=Depends(get_current_user)):
             if code in used or not isinstance(row["capacidad"], int) or row["capacidad"] < 1:
                 raise HTTPException(503, "Hay espacios duplicados o con capacidad inválida. Revisa el catálogo.")
             used.add(code)
-            result.append({"id": code, "idBaseDatos": str(row["id"]), "nombre": row["nombre"], "capacidadMaxima": row["capacidad"]})
+            state = states.get(row["estado_id"], "Sin estado")
+            available = state.casefold() in ("habilitado", "habiltado")
+            result.append({"id": code, "idBaseDatos": str(row["id"]), "nombre": row["nombre"], "capacidadMaxima": row["capacidad"], "estado": state, "disponible": available})
         return result
     except HTTPException:
         raise
@@ -292,23 +299,42 @@ def list_reservations(user=Depends(get_current_user)):
 def reservation_catalogs(user=Depends(get_current_user)):
     try:
         db = client(admin=True)
-        customers = []
-        for offset in range(0, 100000, 500):
-            page = db.table('cliente').select('id,nombre').not_.is_('nombre', 'null').order('nombre').order('id').range(offset, offset + 499).execute().data
-            customers.extend(page)
-            if len(page) < 500:
-                break
         if user['role'] == 'tatuador':
             artists = [{'id': user['id'], 'nombre': user['name']}]
         else:
             role_ids = [row['id'] for row in db.table('rol').select('id,nombre').execute().data
                         if row['nombre'].strip().lower() == 'tatuador']
             artists = db.table('usuarios').select('id,nombre').in_('rol', role_ids).eq('activo', True).order('nombre').execute().data if role_ids else []
-        return {'clientes': customers, 'tatuadores': artists}
+        return {'tatuadores': artists}
     except HTTPException:
         raise
     except Exception as exc:
         raise HTTPException(503, 'No se pudieron cargar los clientes y tatuadores.') from exc
+
+
+@app.get('/api/clientes')
+def search_customers(
+    busqueda: str = Query(min_length=2, max_length=120),
+    user=Depends(get_current_user),
+):
+    return reservation_rpc('okami_buscar_clientes', {'p_actor': user['id'], 'p_busqueda': busqueda.strip()})
+
+
+def normalize_rut(value):
+    """Forma canónica del RUT: solo dígitos y K mayúscula, sin puntos ni guion (ej. 12345678K)."""
+    return re.sub(r'[^0-9K]', '', (value or '').upper())
+
+
+def rut_error(rut):
+    if not rut:
+        return 'Ingresa el RUT del cliente con su dígito verificador.'
+    if not re.fullmatch(r'\d{1,9}[0-9K]', rut) or set(rut[:-1]) == {'0'}:
+        return 'Ingresa un RUT válido, por ejemplo 12.345.678-5.'
+    total = sum(int(digit) * (2 + index % 6) for index, digit in enumerate(reversed(rut[:-1])))
+    expected = {11: '0', 10: 'K'}.get(11 - total % 11, str(11 - total % 11))
+    if rut[-1] != expected:
+        return 'El dígito verificador no corresponde al RUT ingresado.'
+    return ''
 
 
 def write_reservation(operation, reservation_id, data, user):
@@ -316,10 +342,19 @@ def write_reservation(operation, reservation_id, data, user):
     if data is not None:
         if time.fromisoformat(data.horaFin) <= time.fromisoformat(data.horaInicio):
             raise HTTPException(422, 'La hora de término debe ser posterior a la de inicio.')
-        params.update(p_cliente=str(data.clienteId), p_tatuador=str(data.tatuadorId), p_espacio=data.espacioId,
+        rut = None
+        if not data.clienteId:
+            rut = normalize_rut(data.clienteRut)
+            error = rut_error(rut)
+            if error:
+                raise HTTPException(422, error)
+        params.update(p_cliente=str(data.clienteId) if data.clienteId else None,
+                      p_cliente_nombre=data.clienteNombre.strip() if data.clienteNombre else None,
+                      p_cliente_rut=rut,
+                      p_tatuador=str(data.tatuadorId), p_espacio=data.espacioId,
                       p_precio=data.precio, p_inicio=f'{data.fecha}T{data.horaInicio}',
                       p_fin=f'{data.fecha}T{data.horaFin}', p_estado=data.estado)
-    return {'id': reservation_rpc('okami_mutar_reserva', params)}
+    return {'id': reservation_rpc('okami_mutar_reserva_cliente_rut', params)}
 
 
 @app.post('/api/reservas', status_code=201)

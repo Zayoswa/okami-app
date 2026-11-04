@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { filterReservations } from "../src/utils/filterReservations.js";
+import { filterReservations, filterReservationsByCustomer } from "../src/utils/filterReservations.js";
 import { spaceOccupancy, reservationCapacityError } from "../src/utils/spaceOccupancy.js";
 
 function reservation(id, overrides = {}) {
@@ -19,6 +19,13 @@ test("los filtros respetan el cambio de mes y la fecha de Santiago", () => {
   assert.deepEqual(filterReservations(rows, "todos", "semana", now).map((row) => row.id), [1, 2, 3]);
   assert.deepEqual(filterReservations(rows, "todos", "mes", now).map((row) => row.id), [2, 3, 4]);
   assert.equal(filterReservations(rows, "Cancelado", "mes", now).length, 0);
+});
+
+test("la búsqueda por cliente ignora mayúsculas", () => {
+  const rows = [reservation(1, { cliente: "Ana Pérez" }), reservation(2, { cliente: "Bruno Toro" })];
+  assert.deepEqual(filterReservationsByCustomer(rows, "ana").map(({ id }) => id), [1]);
+  assert.deepEqual(filterReservationsByCustomer(rows, "TORO").map(({ id }) => id), [2]);
+  assert.equal(filterReservationsByCustomer(rows, "").length, 2);
 });
 
 test("las sesiones contiguas no se superponen y se calcula el máximo simultáneo", () => {

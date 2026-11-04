@@ -385,7 +385,8 @@ RESPONSIVE
   font-weight: 600;
   color: #57534e;
 }
-.reservas-filters select {
+.reservas-filters select,
+.reservas-filters input {
   padding: 10px 12px;
   border: 1px solid #d7d7d7;
   border-radius: 8px;
@@ -423,6 +424,28 @@ RESPONSIVE
   margin: 0 0 14px;
   font-size: 16px;
   font-weight: 600;
+}
+
+.reservation-client-matches {
+  border: 1px solid #dfd9d1;
+  border-radius: 8px;
+  padding: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.reservation-client-matches p {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.reservation-client-matches button {
+  text-align: left;
+  background: #fff;
+  color: inherit;
+  border: 1px solid #eee8e1;
+  border-radius: 6px;
+  padding: 8px;
 }
 .reservas-espacios-grid {
   display: grid;

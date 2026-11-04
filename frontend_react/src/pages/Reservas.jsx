@@ -5,7 +5,7 @@ import CreateReservationButton from "../components/CreateReservationButton";
 import "./Reservas.css";
 import ReservationModal from "../components/ReservationModal";
 import DeleteReservationModal from "../components/DeleteReservationModal";
-import { filterReservations } from "../utils/filterReservations";
+import { filterReservations, filterReservationsByCustomer } from "../utils/filterReservations";
 import { pendingSpaceOccupancy } from "../utils/spaceOccupancy";
 import { reservationStatuses } from "../data/reservationStatuses";
 import { ownsReservation } from "../utils/access";
@@ -20,9 +20,12 @@ export default function Reservas({ user, personal = false }) {
     const [message, setMessage] = useState("");
     const [estadoFilter, setEstadoFilter] = useState("todos");
     const [fechaFilter, setFechaFilter] = useState("todas");
+    const [clienteFilter, setClienteFilter] = useState("");
     const [page, setPage] = useState(1);
     const scopedReservations = personal ? reservas.filter((reserva) => ownsReservation(user, reserva)) : reservas;
-    const filteredReservations = filterReservations(scopedReservations, estadoFilter, fechaFilter);
+    const filteredReservations = filterReservationsByCustomer(
+        filterReservations(scopedReservations, estadoFilter, fechaFilter), clienteFilter,
+    );
     const totalPages = Math.max(1, Math.ceil(filteredReservations.length / pageSize));
     const currentPage = Math.min(page, totalPages);
     const pageStart = (currentPage - 1) * pageSize;
@@ -80,6 +83,9 @@ export default function Reservas({ user, personal = false }) {
                             <option value="mes">Mes actual</option>
                         </select>
                     </label>
+                    <label>Cliente
+                        <input type="search" value={clienteFilter} onChange={(event) => { setClienteFilter(event.target.value); setPage(1); }} placeholder="Buscar por cliente" />
+                    </label>
                 </div>
                 <CreateReservationButton disabled={loading || Boolean(error)} onClick={() => openReservationModal()} />
             </div>
@@ -109,12 +115,13 @@ export default function Reservas({ user, personal = false }) {
             <div className="reservas-espacios-grid" aria-live="polite">
                 {espacios.map((espacio) => {
                     const ocupados = pendingSpaceOccupancy(reservas, espacio.id);
-                    const lleno = ocupados >= espacio.capacidadMaxima;
+                    const noDisponible = !espacio.disponible;
+                    const lleno = noDisponible || ocupados >= espacio.capacidadMaxima;
                     return <article className={`reserva-espacio-card${lleno ? " reserva-espacio-full" : ""}`} key={espacio.id}>
                         <h3>{espacio.nombre}</h3>
                         <p>Reservas pendientes / capacidad</p>
                         <strong aria-label={`${ocupados} reservas pendientes, capacidad ${espacio.capacidadMaxima}`}>{ocupados}/{espacio.capacidadMaxima}</strong>
-                        <p className="reserva-espacio-availability">{lleno ? "Lleno" : "Disponible"}</p>
+                        <p className="reserva-espacio-availability">{noDisponible ? espacio.estado : lleno ? "Lleno" : "Disponible"}</p>
                     </article>;
                 })}
             </div>

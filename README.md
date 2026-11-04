@@ -18,6 +18,7 @@ Aplicación web para coordinar las reservas y los espacios de trabajo del estudi
 - Listado paginado con siete reservas por página.
 - Resumen de ocupación por espacio y validación de capacidad.
 - Calendario mensual con sesiones identificadas por tatuador y agenda del día organizada por espacios.
+- Búsqueda y alta automática de clientes dentro de una reserva; cada cliente nuevo requiere un RUT válido, guardado completo en un solo campo. Los clientes no tienen cuentas ni roles.
 
 ### Módulos por rol
 
@@ -155,6 +156,8 @@ Los datos iniciales están en `frontend_react/src/data`: reservas, ejemplos hist
 El resumen de ocupación cuenta todas las reservas pendientes asignadas a cada espacio. La validación aplica ese límite y también comprueba las sesiones que se superponen en fecha y horario. Las reservas canceladas no ocupan cupos.
 
 La agenda, los espacios y las reservas se consultan desde Supabase. Las reservas antiguas del navegador no se importan.
+
+Los clientes son registros del estudio: se pueden buscar por nombre o RUT desde una reserva. Si no existe una coincidencia, el tatuador o administrador puede crearlo al guardar esa misma reserva. Para activar este flujo y bloquear espacios en mantenimiento, ejecutar la migración `005_clientes_y_espacios_disponibles.sql` descrita en [Reservas reales](docs/reservas-reales.md).
 
 ## Estructura del proyecto
 

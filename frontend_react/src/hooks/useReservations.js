@@ -3,7 +3,7 @@ import { authRequest } from "../services/authService.js";
 import { reservationsRepository } from "../services/reservationsRepository.js";
 
 export default function useReservations(user, repository = reservationsRepository) {
-  const [catalogos, setCatalogos] = useState({ clientes: [], tatuadores: [] });
+  const [catalogos, setCatalogos] = useState({ tatuadores: [] });
   const [espacios, setEspacios] = useState([]);
   const [reservas, setReservas] = useState([]);
   const [loading, setLoading] = useState(true);

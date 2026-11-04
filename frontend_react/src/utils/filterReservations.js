@@ -14,3 +14,9 @@ export function filterReservations(reservas, estado, periodo, now = new Date()) 
     return true;
   });
 }
+
+export function filterReservationsByCustomer(reservas, query) {
+  const normalized = query.trim().toLocaleLowerCase("es-CL");
+  if (!normalized) return reservas;
+  return reservas.filter((reserva) => reserva.cliente?.toLocaleLowerCase("es-CL").includes(normalized));
+}
