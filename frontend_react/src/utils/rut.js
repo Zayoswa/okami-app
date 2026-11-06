@@ -1,5 +1,5 @@
 // El RUT se guarda en forma canónica: solo dígitos y K mayúscula (ej. 12345678K).
-// El formato con puntos y guion es solo de presentación.
+// Se muestra y se escribe sin puntos, solo con guion antes del dígito verificador (ej. 11222333-K).
 export function normalizeRut(value) {
   return String(value ?? "").toUpperCase().replace(/[^0-9K]/g, "");
 }
@@ -20,7 +20,7 @@ export function rutVerifier(body) {
 export function rutValidationError(value) {
   const rut = normalizeRut(value);
   if (!rut) return "Ingresa el RUT del cliente con su dígito verificador.";
-  if (!/^\d{1,9}[0-9K]$/.test(rut) || /^0+$/.test(rut.slice(0, -1))) return "Ingresa un RUT válido, por ejemplo 12.345.678-5.";
+  if (!/^\d{1,9}[0-9K]$/.test(rut) || /^0+$/.test(rut.slice(0, -1))) return "Ingresa un RUT válido, sin puntos y con guion. Ej: 12345678-5.";
   if (rutVerifier(rut.slice(0, -1)) !== rut.slice(-1)) return "El dígito verificador no corresponde al RUT ingresado.";
   return "";
 }
@@ -28,6 +28,13 @@ export function rutValidationError(value) {
 export function formatRut(value) {
   const rut = normalizeRut(value);
   if (rut.length < 2) return rut;
-  const body = rut.slice(0, -1).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  return `${body}-${rut.slice(-1)}`;
+  return `${rut.slice(0, -1)}-${rut.slice(-1)}`;
+}
+
+// Mientras se escribe: solo dígitos, K y un guion; sin puntos ni espacios.
+export function typedRut(value) {
+  const clean = String(value ?? "").toUpperCase().replace(/[^0-9K-]/g, "");
+  const [body, ...rest] = clean.split("-");
+  const verifier = rest.join("").slice(0, 1);
+  return (clean.includes("-") ? `${body}-${verifier}` : body).slice(0, 11);
 }

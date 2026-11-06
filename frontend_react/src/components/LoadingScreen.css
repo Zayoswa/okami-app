@@ -21,7 +21,7 @@
   z-index: 1000;
   min-height: 100vh;
 
-  background-color: #f1efe9;
+  background-color: var(--color-bg);
 }
 
 .loading-message {
@@ -30,7 +30,7 @@
   letter-spacing: 0.14em;
   text-transform: uppercase;
 
-  color: #7c766e;
+  color: var(--color-muted);
 }
 
 /* Contenedor que gira entero */
@@ -57,13 +57,13 @@
   height: 25%;
 
   border-radius: 50%;
-  background-color: #c28f37;
+  background-color: var(--color-gold);
 
   animation: loading-chase-dot-scale 2s ease-in-out infinite both;
 }
 
 .loading-chase-dot:nth-child(even)::before {
-  background-color: #191a18;
+  background-color: var(--color-dark);
 }
 
 .loading-chase-dot:nth-child(1),

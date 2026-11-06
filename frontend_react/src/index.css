@@ -1,9 +1,53 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 
+/* =========================
+   PALETA DE OKAMI
+   Todos los módulos usan estas variables. Para cambiar un color,
+   cámbialo aquí y se actualiza en toda la app.
+   (Tatuadores.css todavía usa colores propios.)
+========================= */
+
 :root {
+  /* Fondos: la página es más oscura que las tarjetas para que se separen */
+  --color-bg: #e9e4da;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f6f3ed;
+  --color-highlight: #fffaf0; /* día seleccionado en el calendario */
+
+  /* Bordes */
+  --color-border: #cbc2b3;
+  --color-border-soft: #e4ded3;
+
+  /* Texto (todos ≥ 4.5:1 sobre blanco y sobre el fondo) */
+  --color-text: #171816;
+  --color-text-soft: #3f3b36;
+  --color-muted: #625c54;
+  --color-on-dark: #ffffff;
+
+  /* Marca */
+  --color-dark: #191a18;
+  --color-dark-hover: #2b2c29;
+  --color-gold: #c28f37;      /* acentos, bordes, focos */
+  --color-gold-text: #7f5714; /* dorado legible como texto */
+
+  /* Estados */
+  --color-pending: #5d4618;
+  --color-pending-bg: #fdf0d2;
+  --color-pending-bg-strong: #f3d99f;
+  --color-success: #285c35;
+  --color-success-bg: #e2f0e5;
+  --color-success-border: #b9d8c0;
+  --color-danger: #8a3030;
+  --color-danger-bg: #fbe5e5;
+  --color-danger-border: #e3b9b9;
+
+  /* Sombra de tarjetas */
+  --shadow-card: 0 1px 2px rgba(23, 24, 22, 0.06), 0 6px 16px rgba(23, 24, 22, 0.07);
+  --shadow-card-hover: 0 2px 4px rgba(23, 24, 22, 0.08), 0 10px 24px rgba(23, 24, 22, 0.1);
+
   font-family: "Inter", sans-serif;
-  color: #171816;
-  background-color: #f1efe9;
+  color: var(--color-text);
+  background-color: var(--color-bg);
   color-scheme: light;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -31,4 +75,54 @@ input {
 
 p {
   margin: 0;
+}
+
+/* =========================
+   NÚMERO DE PUESTO DE FONDO
+   Uso: className="puesto-numero-fondo" data-numero="3"
+   Dibuja el número gigante a la derecha, semitransparente.
+   Verde si el puesto está disponible, rojo si no (mismo color que su borde).
+   Ajusta la visibilidad con --puesto-numero-opacidad.
+========================= */
+
+.puesto-numero-fondo {
+  --puesto-numero-opacidad: 0.3;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate; /* el número queda detrás del contenido de la tarjeta */
+}
+
+.puesto-numero-fondo::after {
+  content: attr(data-numero);
+  content: attr(data-numero) / ""; /* lectores de pantalla lo ignoran */
+
+  position: absolute;
+  right: 0.2em;
+  bottom: 0.02em;
+  z-index: -1;
+
+  font-size: 70px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.06em;
+
+  color: var(--color-success);
+  opacity: var(--puesto-numero-opacidad);
+
+  pointer-events: none;
+  user-select: none;
+}
+
+.reserva-espacio-full.puesto-numero-fondo::after,
+.espacio-card-off.puesto-numero-fondo::after,
+.calendar-space-unavailable.puesto-numero-fondo::after {
+  color: var(--color-danger);
+  opacity: 0.24;
+}
+
+/* Variante para tarjetas altas (columnas de la agenda): el número va arriba */
+.puesto-numero-fondo--arriba::after {
+  top: -0.12em;
+  bottom: auto;
+  font-size: 96px;
 }

@@ -22,3 +22,13 @@ Ejecuta también [006_validacion_rut_clientes.sql](../backend-fastapi/migrations
 Antes de ejecutarla, revisa [vista_previa_006.sql](../backend-fastapi/scripts/vista_previa_006.sql), que es de solo lectura. **La migración borra los clientes cuyo RUT no se puede normalizar a uno válido, junto con sus reservas**, elimina la columna `identificador` y deja una sola función de escritura de reservas. Si encuentra dos clientes con el mismo RUT, se detiene sin modificar datos.
 
 La misma migración asigna el estado Habilitado a los espacios actuales que todavía no tienen estado. Espacios en Mantencion, Desahabilitado o sin estado se muestran como no disponibles y el servidor rechaza nuevas reservas en ellos.
+
+## Puestos y reservas con varias sesiones
+
+Ejecuta [007_puestos_y_sesiones.sql](../backend-fastapi/migrations/007_puestos_y_sesiones.sql) después de 006. **Borra todas las reservas** y reemplaza los espacios A–F por 15 puestos.
+
+- **Puestos:** la tabla `espacio` pasa a llamarse `puesto` y `espacio_estados` pasa a `puesto_estados`. Se crean `Puesto 1` a `Puesto 15`, sin capacidad: cada puesto atiende una sesión a la vez. Un puesto en `Mantenimiento` no acepta sesiones nuevas, pero las ya agendadas se pueden completar o cancelar. Por ahora el estado se cambia directamente en Supabase.
+- **Reservas y sesiones:** la reserva es el tatuaje (cliente, tatuador, precio total). La tabla `reserva_sesiones` guarda cada visita con su puesto, fecha y horario (`inicio`, `fin`) y estado. Una reserva tiene entre 1 y 30 sesiones; el estado de la reserva se calcula a partir de sus sesiones.
+- **Reglas al guardar:** un puesto no puede tener dos sesiones que se crucen; un tatuador no puede tener dos sesiones a la misma hora; las sesiones de una misma reserva no pueden cruzarse entre sí; no se agendan sesiones en el pasado ni en puestos en mantenimiento. Las sesiones canceladas no ocupan el puesto. Ya no existe el límite global de reservas pendientes.
+
+En el formulario, **+ Agregar sesión** suma una fecha más y **Quitar sesión** la elimina al guardar. En el calendario cada sesión aparece en su puesto; al abrirla se edita la reserva completa.

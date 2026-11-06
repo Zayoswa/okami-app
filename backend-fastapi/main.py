@@ -105,18 +105,26 @@ class ActiveRequest(BaseModel):
     activo: bool
 
 
+HOUR_PATTERN = r"^([01][0-9]|2[0-3]):[0-5][0-9]$"
+
+
+class ReservationSession(BaseModel):
+    id: UUID
+    puestoId: int = Field(gt=0)
+    fecha: date
+    horaInicio: str = Field(pattern=HOUR_PATTERN)
+    horaFin: str = Field(pattern=HOUR_PATTERN)
+    estado: Literal['Pendiente', 'Confirmada', 'Cancelado', 'Completado']
+
+
 class ReservationRequest(BaseModel):
     clienteId: UUID | None = None
     clienteNombre: str | None = Field(default=None, max_length=120)
-    # RUT completo con dígito verificador; se aceptan puntos, guion y espacios (ej. 12.345.678-K).
+    # RUT completo con dígito verificador (ej. 11222333-K). Se toleran puntos y espacios por compatibilidad.
     clienteRut: str | None = Field(default=None, max_length=16)
     tatuadorId: UUID
-    espacioId: int = Field(gt=0)
     precio: int = Field(ge=0, le=9007199254740991)
-    fecha: date
-    horaInicio: str = Field(pattern=r"^([01][0-9]|2[0-3]):[0-5][0-9]$")
-    horaFin: str = Field(pattern=r"^([01][0-9]|2[0-3]):[0-5][0-9]$")
-    estado: Literal['Pendiente', 'Confirmada', 'Cancelado', 'Completado']
+    sesiones: list[ReservationSession] = Field(min_length=1, max_length=30)
 
 
 class ReservationCreate(ReservationRequest):
@@ -215,29 +223,58 @@ def modalities(user=Depends(require_admin)):
         raise HTTPException(503, "No se pudieron consultar las modalidades.") from exc
 
 
-@app.get("/api/espacios")
-def spaces(user=Depends(get_current_user)):
+def natural_key(name):
+    """Ordena "Puesto 2" antes que "Puesto 10"."""
+    return [int(part) if part.isdigit() else part.casefold() for part in re.split(r"(\d+)", name)]
+
+
+@app.get("/api/puestos")
+def puestos(user=Depends(get_current_user)):
     try:
         db = client(admin=True)
-        states = {row["id"]: row["estado"].strip() for row in db.table("espacio_estados").select("id,estado").execute().data}
-        rows = db.table("espacio").select("id,nombre,capacidad,estado_id").order("nombre").execute().data
+        states = {row["id"]: row["estado"].strip() for row in db.table("puesto_estados").select("id,estado").execute().data}
+        rows = db.table("puesto").select("id,nombre,estado_id").execute().data
         result = []
-        used = set()
-        for row in rows:
-            # Compatibilidad con las reservas locales, que guardan A–F.
-            legacy = re.fullmatch(r"Espacio ([A-F])", row["nombre"], re.IGNORECASE)
-            code = legacy[1].upper() if legacy else f"db:{row['id']}"
-            if code in used or not isinstance(row["capacidad"], int) or row["capacidad"] < 1:
-                raise HTTPException(503, "Hay espacios duplicados o con capacidad inválida. Revisa el catálogo.")
-            used.add(code)
+        for row in sorted(rows, key=lambda item: natural_key(item["nombre"])):
             state = states.get(row["estado_id"], "Sin estado")
-            available = state.casefold() in ("habilitado", "habiltado")
-            result.append({"id": code, "idBaseDatos": str(row["id"]), "nombre": row["nombre"], "capacidadMaxima": row["capacidad"], "estado": state, "disponible": available})
+            result.append({"id": str(row["id"]), "nombre": row["nombre"], "estado": state,
+                           "estadoId": row["estado_id"], "disponible": state.casefold() == "habilitado"})
         return result
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(503, "No se pudieron cargar los espacios de Supabase.") from exc
+        raise HTTPException(503, "No se pudieron cargar los puestos. Comprueba la migración 007 en Supabase.") from exc
+
+
+@app.get("/api/puestos/estados")
+def puesto_states(admin=Depends(require_admin)):
+    try:
+        return client(admin=True).table("puesto_estados").select("id,estado").order("id").execute().data
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(503, "No se pudieron cargar los estados de los puestos.") from exc
+
+
+class PuestoStateRequest(BaseModel):
+    estadoId: int = Field(gt=0)
+
+
+# Las sesiones ya agendadas se conservan: un puesto en mantenimiento solo rechaza sesiones nuevas o movidas.
+@app.patch("/api/puestos/{puesto_id}")
+def update_puesto_state(puesto_id: int, data: PuestoStateRequest, admin=Depends(require_admin)):
+    try:
+        db = client(admin=True)
+        if not db.table("puesto_estados").select("id").eq("id", data.estadoId).execute().data:
+            raise HTTPException(422, "Selecciona un estado válido.")
+        updated = db.table("puesto").update({"estado_id": data.estadoId}).eq("id", puesto_id).execute().data
+        if not updated:
+            raise HTTPException(404, "El puesto no existe.")
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(503, "No se pudo actualizar el puesto.") from exc
 
 
 @app.post("/api/usuarios/invitaciones", status_code=201)
@@ -329,7 +366,7 @@ def rut_error(rut):
     if not rut:
         return 'Ingresa el RUT del cliente con su dígito verificador.'
     if not re.fullmatch(r'\d{1,9}[0-9K]', rut) or set(rut[:-1]) == {'0'}:
-        return 'Ingresa un RUT válido, por ejemplo 12.345.678-5.'
+        return 'Ingresa un RUT válido, sin puntos y con guion. Ej: 12345678-5.'
     total = sum(int(digit) * (2 + index % 6) for index, digit in enumerate(reversed(rut[:-1])))
     expected = {11: '0', 10: 'K'}.get(11 - total % 11, str(11 - total % 11))
     if rut[-1] != expected:
@@ -337,11 +374,26 @@ def rut_error(rut):
     return ''
 
 
+def sessions_error(sessions):
+    if len({session.id for session in sessions}) != len(sessions):
+        return 'Cada sesión necesita un identificador distinto.'
+    for session in sessions:
+        if time.fromisoformat(session.horaFin) <= time.fromisoformat(session.horaInicio):
+            return 'La hora de término de cada sesión debe ser posterior a la de inicio.'
+    active = [s for s in sessions if s.estado != 'Cancelado']
+    for index, first in enumerate(active):
+        for second in active[index + 1:]:
+            if first.fecha == second.fecha and first.horaInicio < second.horaFin and second.horaInicio < first.horaFin:
+                return 'Las sesiones de esta reserva no pueden cruzarse entre sí.'
+    return ''
+
+
 def write_reservation(operation, reservation_id, data, user):
     params = {'p_actor': user['id'], 'p_operacion': operation, 'p_id': str(reservation_id)}
     if data is not None:
-        if time.fromisoformat(data.horaFin) <= time.fromisoformat(data.horaInicio):
-            raise HTTPException(422, 'La hora de término debe ser posterior a la de inicio.')
+        error = sessions_error(data.sesiones)
+        if error:
+            raise HTTPException(422, error)
         rut = None
         if not data.clienteId:
             rut = normalize_rut(data.clienteRut)
@@ -351,10 +403,11 @@ def write_reservation(operation, reservation_id, data, user):
         params.update(p_cliente=str(data.clienteId) if data.clienteId else None,
                       p_cliente_nombre=data.clienteNombre.strip() if data.clienteNombre else None,
                       p_cliente_rut=rut,
-                      p_tatuador=str(data.tatuadorId), p_espacio=data.espacioId,
-                      p_precio=data.precio, p_inicio=f'{data.fecha}T{data.horaInicio}',
-                      p_fin=f'{data.fecha}T{data.horaFin}', p_estado=data.estado)
-    return {'id': reservation_rpc('okami_mutar_reserva_cliente_rut', params)}
+                      p_tatuador=str(data.tatuadorId), p_precio=data.precio,
+                      p_sesiones=[{'id': str(s.id), 'puesto': s.puestoId, 'estado': s.estado,
+                                   'inicio': f'{s.fecha}T{s.horaInicio}', 'fin': f'{s.fecha}T{s.horaFin}'}
+                                  for s in data.sesiones])
+    return {'id': reservation_rpc('okami_guardar_reserva', params)}
 
 
 @app.post('/api/reservas', status_code=201)

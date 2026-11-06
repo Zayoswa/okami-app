@@ -1,36 +1,35 @@
 import CalendarReservationCard from "./CalendarReservationCard";
 import { canManageReservation } from "../utils/access";
+import { puestoNumber } from "../utils/puestos";
 
 const dayFormatter = new Intl.DateTimeFormat("es-CL", {
   weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC",
 });
 
-export default function CalendarAgenda({ user, selectedDate, reservations, spaces, onEdit, onDelete }) {
+export default function CalendarAgenda({ user, selectedDate, sessions, puestos, onView, onDelete }) {
   return (
     <section className="calendar-agenda" aria-labelledby="calendar-agenda-title">
       <h2 id="calendar-agenda-title">
         Agenda del {dayFormatter.format(new Date(`${selectedDate}T12:00:00Z`))}
       </h2>
       <p className="calendar-agenda-description" role="status">
-        {reservations.length} reservas según los filtros. Edita una sesión para cambiar su fecha, horario o espacio.
+        {sessions.length} sesiones según los filtros. Selecciona una sesión para ver su detalle.
       </p>
-      <div className="calendar-space-columns" tabIndex={0} role="region" aria-label="Agenda por espacios, desplazamiento horizontal">
-        {spaces.map((space) => {
-          const sessions = reservations.filter((item) => (item.espacioId ?? "") === space.id);
+      <div className="calendar-space-columns" tabIndex={0} role="region" aria-label="Agenda por puestos, desplazamiento horizontal">
+        {puestos.map((puesto) => {
+          const items = sessions.filter((item) => item.puestoId === puesto.id);
           return (
-            <section className="calendar-space" key={space.id} aria-label={space.nombre}>
+            <section className={`calendar-space puesto-numero-fondo puesto-numero-fondo--arriba${puesto.disponible ? "" : " calendar-space-unavailable"}`} data-numero={puestoNumber(puesto.nombre)} key={puesto.id} aria-label={puesto.nombre}>
               <div className="calendar-space-header">
-                <h3>{space.nombre}</h3>
-                {space.capacidadMaxima && (
-                  <span>Capacidad: {space.capacidadMaxima} {space.capacidadMaxima === 1 ? "persona" : "personas"}</span>
-                )}
+                <h3>{puesto.nombre}</h3>
+                {!puesto.disponible && <span>{puesto.estado}</span>}
               </div>
-              {sessions.length === 0 ? <p className="calendar-space-empty">Sin reservas</p> : sessions.map((reserva) => (
+              {items.length === 0 ? <p className="calendar-space-empty">Libre</p> : items.map((sesion) => (
                 <CalendarReservationCard
-                  key={reserva.id}
-                  reserva={reserva}
-                  canManage={canManageReservation(user, reserva)}
-                  onEdit={onEdit}
+                  key={sesion.id}
+                  sesion={sesion}
+                  canManage={canManageReservation(user, sesion)}
+                  onView={onView}
                   onDelete={onDelete}
                 />
               ))}

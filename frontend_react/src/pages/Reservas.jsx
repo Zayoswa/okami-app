@@ -7,14 +7,16 @@ import "./Reservas.css";
 import ReservationModal from "../components/ReservationModal";
 import DeleteReservationModal from "../components/DeleteReservationModal";
 import { filterReservations, filterReservationsByCustomer } from "../utils/filterReservations";
-import { pendingSpaceOccupancy } from "../utils/spaceOccupancy";
+import { reservationStatus } from "../utils/sessions";
+import { todayInSantiago } from "../utils/calendar";
 import { reservationStatuses } from "../data/reservationStatuses";
 import { ownsReservation } from "../utils/access";
+import { puestoNumber } from "../utils/puestos";
 
-const pageSize = 7;
+const pageSize = 10;
 
 export default function Reservas({ user, personal = false }) {
-    const { reservas, espacios, catalogos, loading, error, reload, saveReservation: persistReservation, deleteReservation: removeReservation } = useReservations(user);
+    const { reservas, sesiones, puestos, catalogos, loading, error, reload, saveReservation: persistReservation, deleteReservation: removeReservation } = useReservations(user);
     const [modalOpen, setModalOpen] = useState(false);
     const [editingReservation, setEditingReservation] = useState(null);
     const [deletingReservation, setDeletingReservation] = useState(null);
@@ -23,6 +25,7 @@ export default function Reservas({ user, personal = false }) {
     const [fechaFilter, setFechaFilter] = useState("todas");
     const [clienteFilter, setClienteFilter] = useState("");
     const [page, setPage] = useState(1);
+    const today = todayInSantiago();
     const scopedReservations = personal ? reservas.filter((reserva) => ownsReservation(user, reserva)) : reservas;
     const filteredReservations = filterReservationsByCustomer(
         filterReservations(scopedReservations, estadoFilter, fechaFilter), clienteFilter,
@@ -69,7 +72,8 @@ export default function Reservas({ user, personal = false }) {
             </p>
 
             <div className="reservas-toolbar">
-                <div className="reservas-filters" role="group" aria-label="Filtros de reservas">
+                {/* Los filtros solo aparecen en Mis reservas; Reservas Generales muestra todo. */}
+                {personal && <div className="reservas-filters" role="group" aria-label="Filtros de reservas">
                     <label>Estado
                         <select value={estadoFilter} onChange={(event) => { setEstadoFilter(event.target.value); setPage(1); }}>
                             <option value="todos">Todos los estados</option>
@@ -87,12 +91,12 @@ export default function Reservas({ user, personal = false }) {
                     <label>Cliente
                         <input type="search" value={clienteFilter} onChange={(event) => { setClienteFilter(event.target.value); setPage(1); }} placeholder="Buscar por cliente" />
                     </label>
-                </div>
+                </div>}
                 <CreateReservationButton disabled={loading || Boolean(error)} onClick={() => openReservationModal()} />
             </div>
         </div>
 
-        {loading && <LoadingScreen message="Cargando reservas y espacios…" />}
+        {loading && <LoadingScreen message="Cargando reservas y puestos…" />}
         {error && <div role="alert"><p>{error}</p><button type="button" className="reservation-button" onClick={reload}>Reintentar</button></div>}
         {!loading && !error && <>
         <section className="reservas-kpis" aria-label="Resumen de reservas filtradas" aria-live="polite">
@@ -104,25 +108,23 @@ export default function Reservas({ user, personal = false }) {
                 <article className={`reserva-kpi ${estado.toLowerCase()}`} key={estado}>
                     <p className="reserva-kpi-label">{etiqueta}</p>
                     <p className="reserva-kpi-value">
-                        {filteredReservations.filter((reserva) => reserva.estado === estado).length}
+                        {filteredReservations.filter((reserva) => reservationStatus(reserva) === estado).length}
                     </p>
                 </article>
             ))}
         </section>
 
-        <section className="reservas-espacios" aria-labelledby="reservas-espacios-title">
-            <h2 id="reservas-espacios-title">Espacios del estudio</h2>
-            <p className="reservas-ocupacion-note">Reservas pendientes por espacio. Se actualizan automáticamente al crear, editar o borrar reservas.</p>
+        <section className="reservas-espacios" aria-labelledby="reservas-puestos-title">
+            <h2 id="reservas-puestos-title">Puestos del estudio</h2>
+            <p className="reservas-ocupacion-note">Sesiones activas agendadas para hoy en cada puesto. Cada puesto atiende una sesión a la vez.</p>
             <div className="reservas-espacios-grid" aria-live="polite">
-                {espacios.map((espacio) => {
-                    const ocupados = pendingSpaceOccupancy(reservas, espacio.id);
-                    const noDisponible = !espacio.disponible;
-                    const lleno = noDisponible || ocupados >= espacio.capacidadMaxima;
-                    return <article className={`reserva-espacio-card${lleno ? " reserva-espacio-full" : ""}`} key={espacio.id}>
-                        <h3>{espacio.nombre}</h3>
-                        <p>Reservas pendientes / capacidad</p>
-                        <strong aria-label={`${ocupados} reservas pendientes, capacidad ${espacio.capacidadMaxima}`}>{ocupados}/{espacio.capacidadMaxima}</strong>
-                        <p className="reserva-espacio-availability">{noDisponible ? espacio.estado : lleno ? "Lleno" : "Disponible"}</p>
+                {puestos.map((puesto) => {
+                    const hoy = sesiones.filter((item) => item.puestoId === puesto.id && item.fecha === today && item.estado !== "Cancelado").length;
+                    return <article className={`reserva-espacio-card puesto-numero-fondo${puesto.disponible ? "" : " reserva-espacio-full"}`} data-numero={puestoNumber(puesto.nombre)} key={puesto.id}>
+                        <h3>{puesto.nombre}</h3>
+                        <p>Sesiones hoy</p>
+                        <strong>{hoy}</strong>
+                        <p className="reserva-espacio-availability">{puesto.estado}</p>
                     </article>;
                 })}
             </div>
@@ -134,7 +136,7 @@ export default function Reservas({ user, personal = false }) {
         </p>
         <section className="reservas-container">
             {visibleReservations.map((reserva) => (
-            <ReservationCard espacios={espacios} key={reserva.id} reserva={reserva} onEdit={openReservationModal} onDelete={requestDelete} />
+            <ReservationCard key={reserva.id} reserva={reserva} onEdit={openReservationModal} onDelete={requestDelete} />
             ))}
             {filteredReservations.length === 0 && <p className="empty-state">{scopedReservations.length === 0 ? "No hay reservas registradas." : "No hay reservas que coincidan con los filtros seleccionados."}</p>}
         </section>
@@ -146,7 +148,7 @@ export default function Reservas({ user, personal = false }) {
             </nav>
         )}
         </>}
-        {modalOpen && <ReservationModal catalogos={catalogos} espacios={espacios} user={user} reserva={editingReservation} reservas={reservas} onSave={saveReservation} onClose={() => setModalOpen(false)} />}
+        {modalOpen && <ReservationModal catalogos={catalogos} puestos={puestos} user={user} reserva={editingReservation} sesiones={sesiones} onSave={saveReservation} onClose={() => setModalOpen(false)} />}
         {deletingReservation && <DeleteReservationModal reserva={deletingReservation} onConfirm={deleteReservation} onClose={() => setDeletingReservation(null)} />}
         </div>
     );

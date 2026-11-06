@@ -1,10 +1,19 @@
 import { useState } from "react";
 import useModalDialog from "../hooks/useModalDialog";
+import { reservationRange } from "../utils/sessions";
+
+const dateFormatter = new Intl.DateTimeFormat("es-CL", { timeZone: "UTC" });
+
+function formatDate(fecha) {
+  return dateFormatter.format(new Date(`${fecha}T12:00:00Z`));
+}
 
 export default function DeleteReservationModal({ reserva, onConfirm, onClose }) {
   const dialogRef = useModalDialog();
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const total = reserva.sesiones?.length ?? 0;
+  const { primera, ultima } = reservationRange(reserva);
 
   async function handleConfirm() {
     if (saving) return;
@@ -27,9 +36,9 @@ export default function DeleteReservationModal({ reserva, onConfirm, onClose }) 
         <button type="button" className="reservation-modal-close" onClick={onClose} disabled={saving} aria-label="Cerrar confirmación">×</button>
       </div>
       <p id="delete-reservation-description" className="reservation-modal-description">
-        ¿Quieres borrar la reserva de <strong>{reserva.cliente}</strong> con {reserva.tatuador},
-        programada para el {new Intl.DateTimeFormat("es-CL").format(new Date(`${reserva.fecha}T${reserva.horaInicio}`))} de {reserva.horaInicio} a {reserva.horaFin}?
-        {" "}Esta acción no se puede deshacer.
+        ¿Quieres borrar la reserva de <strong>{reserva.cliente ?? "este cliente"}</strong> con {reserva.tatuador}
+        {total > 0 && <> y sus <strong>{total} {total === 1 ? "sesión" : "sesiones"}</strong> ({primera === ultima ? `el ${formatDate(primera)}` : `del ${formatDate(primera)} al ${formatDate(ultima)}`})</>}?
+        {" "}Esta acción no se puede deshacer. Para quitar solo una sesión, edita la reserva.
       </p>
       {error && <p className="reservation-form-error" role="alert">{error}</p>}
       <div className="reservation-modal-actions">

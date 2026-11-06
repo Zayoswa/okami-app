@@ -7,17 +7,38 @@ import main
 
 class AccessTests(unittest.TestCase):
     @patch('main.client')
-    def test_spaces_requires_session_and_serves_both_roles(self, client):
-        self.assertEqual(self.api.get('/api/espacios').status_code, 401)
-        client.return_value.table.return_value.select.return_value.execute.return_value.data = [{'id': 1, 'estado': 'Habilitado'}]
-        query = client.return_value.table.return_value.select.return_value.order.return_value
-        query.execute.return_value.data = [{'id':42,'nombre':'Espacio A','capacidad':3, 'estado_id': 1}]
+    def test_puestos_requires_session_and_serves_both_roles(self, client):
+        self.assertEqual(self.api.get('/api/puestos').status_code, 401)
+        rows = {
+            'puesto_estados': [{'id': 1, 'estado': 'Habilitado'}, {'id': 2, 'estado': 'Mantenimiento'}],
+            'puesto': [{'id': 10, 'nombre': 'Puesto 10', 'estado_id': 2}, {'id': 2, 'nombre': 'Puesto 2', 'estado_id': 1}],
+        }
+        client.return_value.table.side_effect = lambda name: Mock(**{'select.return_value.execute.return_value.data': rows[name]})
         for role in ('admin', 'tatuador'):
             with self.subTest(role=role):
                 main.app.dependency_overrides[main.get_current_user] = lambda: {'role':role}
-                response = self.api.get('/api/espacios')
+                response = self.api.get('/api/puestos')
                 self.assertEqual(response.status_code, 200)
-                self.assertEqual(response.json(), [{'id':'A','idBaseDatos':'42','nombre':'Espacio A','capacidadMaxima':3, 'estado':'Habilitado', 'disponible':True}])
+                self.assertEqual(response.json(), [
+                    {'id': '2', 'nombre': 'Puesto 2', 'estado': 'Habilitado', 'estadoId': 1, 'disponible': True},
+                    {'id': '10', 'nombre': 'Puesto 10', 'estado': 'Mantenimiento', 'estadoId': 2, 'disponible': False},
+                ])
+
+    @patch('main.client')
+    def test_only_admin_changes_puesto_state(self, client):
+        self.assertEqual(self.api.patch('/api/puestos/3', json={'estadoId': 2}).status_code, 401)
+        main.app.dependency_overrides[main.get_current_user] = lambda: {'role': 'tatuador'}
+        self.assertEqual(self.api.patch('/api/puestos/3', json={'estadoId': 2}).status_code, 403)
+        self.assertEqual(self.api.get('/api/puestos/estados').status_code, 403)
+        client.assert_not_called()
+        main.app.dependency_overrides[main.get_current_user] = lambda: {'role': 'admin'}
+        table = client.return_value.table.return_value
+        table.select.return_value.eq.return_value.execute.return_value.data = [{'id': 2}]
+        table.update.return_value.eq.return_value.execute.return_value.data = [{'id': 3}]
+        self.assertEqual(self.api.patch('/api/puestos/3', json={'estadoId': 2}).status_code, 200)
+        table.update.assert_called_with({'estado_id': 2})
+        table.select.return_value.eq.return_value.execute.return_value.data = []
+        self.assertEqual(self.api.patch('/api/puestos/3', json={'estadoId': 99}).status_code, 422)
 
     @patch.dict('os.environ', {'SUPABASE_URL': 'https://example.supabase.co', 'SUPABASE_SECRET_KEY': 'sb_secret_example'})
     def test_supabase_client_options_are_compatible(self):

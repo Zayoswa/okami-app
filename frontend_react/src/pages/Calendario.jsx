@@ -3,6 +3,7 @@ import { reservationStatuses } from "../data/reservationStatuses";
 import useReservations from "../hooks/useReservations";
 import ReservationModal from "../components/ReservationModal";
 import DeleteReservationModal from "../components/DeleteReservationModal";
+import ReservationDetailsModal from "../components/ReservationDetailsModal";
 import CalendarAgenda from "../components/CalendarAgenda";
 import LoadingScreen from "../components/LoadingScreen";
 import { monthDays, shiftMonth, todayInSantiago } from "../utils/calendar";
@@ -16,37 +17,49 @@ const weekdays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
 export default function Calendario({ user }) {
   const today = todayInSantiago();
-  const { reservas, espacios, catalogos, loading, error, reload, saveReservation, deleteReservation } = useReservations(user);
+  const { sesiones, puestos, catalogos, loading, error, reload, saveReservation, deleteReservation } = useReservations(user);
   const [month, setMonth] = useState(today.slice(0, 7));
   const [selectedDate, setSelectedDate] = useState(today);
   const [spaceFilter, setSpaceFilter] = useState("todos");
   const [statusFilter, setStatusFilter] = useState("todos");
   const [modal, setModal] = useState(null);
+  const [details, setDetails] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [message, setMessage] = useState("");
-  const filtered = reservas.filter((item) =>
-    (spaceFilter === "todos" || item.espacioId === spaceFilter) &&
+  const filtered = sesiones.filter((item) =>
+    (spaceFilter === "todos" || item.puestoId === spaceFilter) &&
     (statusFilter === "todos" || item.estado === statusFilter)
   ).sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
   const dayReservations = filtered.filter((item) => item.fecha === selectedDate);
-  const groups = [...espacios, { id: "", nombre: "Sin espacio asignado" }]
-    .filter((space) => (spaceFilter === "todos" || space.id === spaceFilter) &&
-      (space.id !== "" || dayReservations.some((item) => !item.espacioId)));
+  const groups = puestos.filter((puesto) => spaceFilter === "todos" || puesto.id === spaceFilter);
 
-  function openModal(reserva = null) {
-    if (reserva && !canManageReservation(user, reserva)) {
-      setSelectedDate(reserva.fecha);
-      setMonth(reserva.fecha.slice(0, 7));
+  // Al hacer clic en una sesión se abre primero su detalle (para todos los usuarios).
+  function openDetails(sesion) {
+    setMessage("");
+    setDetails(sesion);
+  }
+
+  // Desde el detalle se pasa a editar la reserva completa con todas sus sesiones.
+  function editFromDetails(sesion) {
+    setDetails(null);
+    openModal(sesion);
+  }
+
+  function openModal(sesion = null) {
+    if (sesion && !canManageReservation(user, sesion)) {
+      setSelectedDate(sesion.fecha);
+      setMonth(sesion.fecha.slice(0, 7));
       return;
     }
     setMessage("");
-    setModal({ reserva });
+    setModal({ reserva: sesion?.reserva ?? null, fecha: sesion?.fecha });
   }
 
   async function handleSave(reserva) {
     await saveReservation(reserva, modal.reserva?.id);
-    setSelectedDate(reserva.fecha);
-    setMonth(reserva.fecha.slice(0, 7));
+    const fecha = modal.fecha && reserva.sesiones.some((item) => item.fecha === modal.fecha) ? modal.fecha : reserva.sesiones[0].fecha;
+    setSelectedDate(fecha);
+    setMonth(fecha.slice(0, 7));
     setMessage(modal.reserva ? "Reserva actualizada correctamente." : "Reserva creada correctamente.");
   }
 
@@ -65,13 +78,13 @@ export default function Calendario({ user }) {
     <div className="calendar-page">
       <p className="dashboard-label">CALENDARIO</p>
       <h1>Calendario del estudio</h1>
-      <p className="dashboard-description">Organiza las sesiones por día, horario y espacio. {user?.role === "tatuador" ? "Puedes editar tus propias reservas." : "Selecciona una reserva para editarla."}</p>
+      <p className="dashboard-description">Organiza las sesiones por día, horario y puesto. {user?.role === "tatuador" ? "Puedes editar tus propias reservas." : "Selecciona una reserva para editarla."}</p>
       <div className="calendar-toolbar">
         <div className="reservas-filters" role="group" aria-label="Filtros del calendario">
-          <label>Espacio
+          <label>Puesto
             <select value={spaceFilter} onChange={(event) => setSpaceFilter(event.target.value)}>
-              <option value="todos">Todos los espacios</option>
-              {espacios.map((space) => <option key={space.id} value={space.id}>{space.nombre}</option>)}
+              <option value="todos">Todos los puestos</option>
+              {puestos.map((puesto) => <option key={puesto.id} value={puesto.id}>{puesto.nombre}</option>)}
             </select>
           </label>
           <label>Estado
@@ -84,7 +97,7 @@ export default function Calendario({ user }) {
         <button type="button" className="reservation-button" disabled={loading || Boolean(error)} onClick={() => openModal()}>Crear reserva</button>
       </div>
       {message && <p className="reservation-success" role="status">{message}</p>}
-      {loading && <LoadingScreen message="Cargando reservas y espacios…" />}
+      {loading && <LoadingScreen message="Cargando reservas y puestos…" />}
       {error && <div role="alert"><p>{error}</p><button type="button" className="reservation-button" onClick={reload}>Reintentar</button></div>}
       {!loading && !error && <>
       <section className="calendar-month" aria-labelledby="calendar-month-title">
@@ -103,11 +116,11 @@ export default function Calendario({ user }) {
               const events = filtered.filter((item) => item.fecha === fecha);
               return (
                 <div className={`calendar-day${!inMonth ? " calendar-day-outside" : ""}${fecha === selectedDate ? " calendar-day-selected" : ""}`} key={fecha}>
-                  <button type="button" className={`calendar-day-number${fecha === today ? " calendar-today" : ""}`} aria-pressed={fecha === selectedDate} aria-label={`${dayFormatter.format(new Date(`${fecha}T12:00:00Z`))}, ${events.length} reservas`} onClick={() => { setSelectedDate(fecha); setMonth(fecha.slice(0, 7)); }}>{day}</button>
-                  {events.slice(0, 3).map((reserva) => (
-                    <button type="button" className={`calendar-event ${reserva.estado.toLowerCase()}`} key={reserva.id} onClick={() => openModal(reserva)} title={`${reserva.tatuador} · ${reserva.horaInicio}–${reserva.horaFin} · ${reserva.estado}`}>
-                      <span>{reserva.horaInicio}–{reserva.horaFin} · {reserva.espacioId ? `Esp. ${reserva.espacioId}` : "Sin espacio"}</span>
-                      <strong>{reserva.tatuador}</strong>
+                  <button type="button" className={`calendar-day-number${fecha === today ? " calendar-today" : ""}`} aria-pressed={fecha === selectedDate} aria-label={`${dayFormatter.format(new Date(`${fecha}T12:00:00Z`))}, ${events.length} sesiones`} onClick={() => { setSelectedDate(fecha); setMonth(fecha.slice(0, 7)); }}>{day}</button>
+                  {events.slice(0, 3).map((sesion) => (
+                    <button type="button" className={`calendar-event ${sesion.estado.toLowerCase()}`} key={sesion.id} onClick={() => openDetails(sesion)} title={`${sesion.tatuador} · ${sesion.puesto} · ${sesion.horaInicio}–${sesion.horaFin} · ${sesion.estado}${sesion.total > 1 ? ` · sesión ${sesion.numero} de ${sesion.total}` : ""}`}>
+                      <span>{sesion.horaInicio}–{sesion.horaFin} · {sesion.puesto}</span>
+                      <strong>{sesion.tatuador}</strong>
                     </button>
                   ))}
                   {events.length > 3 && <button type="button" className="calendar-more" onClick={() => { setSelectedDate(fecha); setMonth(fecha.slice(0, 7)); }}>Ver {events.length - 3} más</button>}
@@ -123,13 +136,14 @@ export default function Calendario({ user }) {
       <CalendarAgenda
         user={user}
         selectedDate={selectedDate}
-        reservations={dayReservations}
-        spaces={groups}
-        onEdit={openModal}
-        onDelete={(item) => { setMessage(""); setDeleting(item); }}
+        sessions={dayReservations}
+        puestos={groups}
+        onView={openDetails}
+        onDelete={(item) => { setMessage(""); setDeleting(item.reserva); }}
       />
       </>}
-      {modal && <ReservationModal catalogos={catalogos} espacios={espacios} user={user} reserva={modal.reserva} reservas={reservas} initialDate={selectedDate} initialSpace={spaceFilter === "todos" ? "" : spaceFilter} onSave={handleSave} onClose={() => setModal(null)} />}
+      {modal && <ReservationModal catalogos={catalogos} puestos={puestos} user={user} reserva={modal.reserva} sesiones={sesiones} initialDate={selectedDate} initialPuesto={spaceFilter === "todos" ? "" : spaceFilter} onSave={handleSave} onClose={() => setModal(null)} />}
+      {details && <ReservationDetailsModal sesion={details} canManage={canManageReservation(user, details)} onEdit={editFromDetails} onClose={() => setDetails(null)} />}
       {deleting && <DeleteReservationModal reserva={deleting} onConfirm={handleDelete} onClose={() => setDeleting(null)} />}
     </div>
   );

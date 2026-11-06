@@ -10,6 +10,11 @@ const santiagoTime = new Intl.DateTimeFormat("en-GB", {
   timeZone: "America/Santiago", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
 });
 
+// Hora actual en Santiago como "HH:MM", comparable con horaInicio / horaFin.
+export function timeInSantiago(now = new Date()) {
+  return santiagoTime.format(now);
+}
+
 export function isFutureReservationStart(date, time, now = new Date()) {
   const today = todayInSantiago(now);
   return date > today || (date === today && time > santiagoTime.format(now));

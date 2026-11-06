@@ -1,15 +1,18 @@
-export default function CalendarReservationCard({ reserva, canManage, onEdit, onDelete }) {
+// Sesión en la agenda del día. "Ver detalle" está disponible para todos;
+// "Borrar reserva" solo para quien puede gestionarla.
+export default function CalendarReservationCard({ sesion, canManage, onView, onDelete }) {
   return (
-    <article className={`calendar-session ${reserva.estado.toLowerCase()}`}>
-      <p className="calendar-session-time">{reserva.horaInicio} – {reserva.horaFin}</p>
-      <h4>{reserva.tatuador}</h4>
-      <span className="calendar-session-status">{reserva.estado}</span>
-      {canManage && (
-        <div className="calendar-session-actions">
-          <button type="button" onClick={() => onEdit(reserva)} aria-label={`Ver y editar sesión de ${reserva.tatuador} a las ${reserva.horaInicio}`}>Ver / editar</button>
-          <button type="button" className="calendar-session-delete" onClick={() => onDelete(reserva)} aria-label={`Borrar sesión de ${reserva.tatuador} a las ${reserva.horaInicio}`}>Borrar</button>
-        </div>
-      )}
+    <article className={`calendar-session ${sesion.estado.toLowerCase()}`}>
+      <p className="calendar-session-time">{sesion.horaInicio} – {sesion.horaFin}</p>
+      <h4>{sesion.tatuador}</h4>
+      {sesion.total > 1 && <p className="calendar-session-number">Sesión {sesion.numero} de {sesion.total}</p>}
+      <span className="calendar-session-status">{sesion.estado}</span>
+      <div className="calendar-session-actions">
+        <button type="button" onClick={() => onView(sesion)} aria-label={`Ver detalle de la reserva de ${sesion.tatuador} a las ${sesion.horaInicio}`}>Ver detalle</button>
+        {canManage && (
+          <button type="button" className="calendar-session-delete" onClick={() => onDelete(sesion)} aria-label={`Borrar la reserva de ${sesion.tatuador} a las ${sesion.horaInicio}`}>Borrar reserva</button>
+        )}
+      </div>
     </article>
   );
 }

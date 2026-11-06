@@ -1,0 +1,191 @@
+/* =========================
+   ESPACIOS (solo admin)
+   Grilla de tarjetas con el mismo estilo que "Puestos del estudio" en Reservas:
+   borde superior verde = habilitado, rojo = no disponible.
+   El número de fondo viene de .puesto-numero-fondo (index.css).
+========================= */
+
+.espacios-page {
+  width: 100%;
+  color: var(--color-text);
+}
+
+.espacios-alert {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  font-size: 13px;
+}
+
+/* ---------- Resumen ---------- */
+
+.espacios-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 20px;
+  padding: 0;
+  list-style: none;
+}
+
+.espacios-summary li {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-soft);
+}
+
+.espacios-summary .espacios-summary-ok {
+  background: var(--color-success-bg);
+  border-color: var(--color-success-border);
+  color: var(--color-success);
+}
+
+.espacios-summary .espacios-summary-off {
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+  color: var(--color-danger);
+}
+
+.espacios-summary .espacios-summary-busy {
+  background: var(--color-pending-bg);
+  border-color: var(--color-pending-bg-strong);
+  color: var(--color-pending);
+}
+
+/* ---------- Grilla ---------- */
+
+.espacios-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.espacio-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-top: 4px solid var(--color-success);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+}
+
+.espacio-card-off {
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+  border-top-color: var(--color-danger);
+}
+
+.espacio-card h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.espacio-card-availability {
+  margin-top: -6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-success);
+}
+
+.espacio-card-off .espacio-card-availability {
+  color: var(--color-danger);
+}
+
+/* ---------- Ocupación en este momento ---------- */
+
+.espacio-occupancy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+
+  border-radius: 8px;
+  background: var(--color-surface-muted);
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.espacio-occupancy strong {
+  font-size: 12px;
+  color: var(--color-text-soft);
+}
+
+/* Ocupado: punto pulsante y fondo dorado para que se vea antes de cambiar el estado */
+.espacio-occupancy-busy {
+  background: var(--color-pending-bg);
+  border: 1px solid var(--color-pending-bg-strong);
+  color: var(--color-pending);
+}
+
+.espacio-occupancy-busy strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-pending);
+}
+
+.espacio-occupancy-busy strong::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-gold);
+  animation: espacio-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes espacio-pulse {
+  50% { opacity: 0.35; }
+}
+
+/* ---------- Selector de estado ---------- */
+
+.espacio-card-state {
+  display: grid;
+  gap: 6px;
+  margin-top: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-soft);
+}
+
+.espacio-card-state select {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.espacio-card-state select:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+}
+
+.espacio-card-state select:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .espacio-occupancy-busy strong::before {
+    animation: none;
+  }
+}
