@@ -53,9 +53,9 @@
 }
 
 .espacios-summary .espacios-summary-busy {
-  background: var(--color-pending-bg);
-  border-color: var(--color-pending-bg-strong);
-  color: var(--color-pending);
+  background: var(--color-busy-bg);
+  border-color: var(--color-busy-border);
+  color: var(--color-text);
 }
 
 /* ---------- Grilla ---------- */
@@ -124,18 +124,19 @@
   color: var(--color-text-soft);
 }
 
-/* Ocupado: punto pulsante y fondo dorado para que se vea antes de cambiar el estado */
+/* Ocupado: fondo naranjo claro, texto negro y punto naranjo oscuro que pulsa
+   (tono distinto al fondo para que la animación se vea) */
 .espacio-occupancy-busy {
-  background: var(--color-pending-bg);
-  border: 1px solid var(--color-pending-bg-strong);
-  color: var(--color-pending);
+  background: var(--color-busy-bg);
+  border: 1px solid var(--color-busy-border);
+  color: var(--color-text);
 }
 
 .espacio-occupancy-busy strong {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--color-pending);
+  color: var(--color-text);
 }
 
 .espacio-occupancy-busy strong::before {
@@ -143,7 +144,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--color-gold);
+  background: var(--color-busy-dot);
   animation: espacio-pulse 1.6s ease-in-out infinite;
 }
 
@@ -188,4 +189,101 @@
   .espacio-occupancy-busy strong::before {
     animation: none;
   }
+}
+
+/* ---------- Tipo de puesto y titulares ---------- */
+
+.espacios-tipos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: -8px 0 16px;
+  font-size: 12px;
+  color: var(--color-text-soft);
+}
+
+.espacio-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+
+
+
+.espacio-titulares {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.espacio-titulares-label {
+  font-weight: 600;
+  color: var(--color-text-soft);
+}
+
+.espacio-titulares-empty {
+  color: var(--color-muted);
+}
+
+.espacio-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.espacio-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface-muted);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.espacio-chip button {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-danger);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.espacio-chip button:hover:not(:disabled) {
+  background: var(--color-danger-bg);
+}
+
+.espacio-chip button:focus-visible,
+.espacio-titulares select:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+}
+
+.espacio-titulares select {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px dashed var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 12px;
+}
+
+/* Tipo y Estado quedan juntos al pie de la tarjeta */
+.espacio-card-type + .espacio-card-state {
+  margin-top: 0;
 }

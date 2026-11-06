@@ -29,17 +29,25 @@
   --color-dark-hover: #2b2c29;
   --color-gold: #c28f37;      /* acentos, bordes, focos */
   --color-gold-text: #7f5714; /* dorado legible como texto */
+  --color-gold-ring: rgba(194, 143, 55, 0.22); /* halo de foco en campos */
 
   /* Estados */
-  --color-pending: #5d4618;
-  --color-pending-bg: #fdf0d2;
-  --color-pending-bg-strong: #f3d99f;
+  /* Sesión programada: azul informativo */
+  --color-pending: #1f4e79;
+  --color-pending-bg: #eaf1f9;
+  --color-pending-bg-strong: #dce8f5;
+  --color-pending-border: #4a7fb5;
   --color-success: #285c35;
   --color-success-bg: #e2f0e5;
   --color-success-border: #b9d8c0;
   --color-danger: #8a3030;
   --color-danger-bg: #fbe5e5;
   --color-danger-border: #e3b9b9;
+
+  /* Espacio ocupado ahora (módulo Espacios): fondo naranjo claro, punto naranjo oscuro */
+  --color-busy-bg: #ffe4c4;
+  --color-busy-border: #f4b27a;
+  --color-busy-dot: #c2410c;
 
   /* Sombra de tarjetas */
   --shadow-card: 0 1px 2px rgba(23, 24, 22, 0.06), 0 6px 16px rgba(23, 24, 22, 0.07);
@@ -125,4 +133,38 @@ p {
   top: -0.12em;
   bottom: auto;
   font-size: 96px;
+}
+
+/* =========================
+   TIPO DE PUESTO (Full / Compartido / Rotativo)
+   Etiqueta con ícono; se usa en Reservas y en Espacios.
+========================= */
+.puesto-tipo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  padding: 3px 9px 3px 7px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface-muted);
+  color: var(--color-text-soft);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.puesto-tipo-badge svg {
+  flex-shrink: 0;
+}
+
+.puesto-tipo-badge--full {
+  border-color: var(--color-gold);
+  color: var(--color-gold-text);
+}
+
+.puesto-tipo-badge--compartido {
+  border-color: var(--color-pending-border);
+  color: var(--color-pending);
 }

@@ -1,12 +1,7 @@
 import { useState } from "react";
 import useModalDialog from "../hooks/useModalDialog";
 import { reservationRange } from "../utils/sessions";
-
-const dateFormatter = new Intl.DateTimeFormat("es-CL", { timeZone: "UTC" });
-
-function formatDate(fecha) {
-  return dateFormatter.format(new Date(`${fecha}T12:00:00Z`));
-}
+import { formatDate } from "../utils/format";
 
 export default function DeleteReservationModal({ reserva, onConfirm, onClose }) {
   const dialogRef = useModalDialog();

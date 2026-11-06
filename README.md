@@ -12,19 +12,19 @@ Aplicación web para coordinar las reservas y los puestos de trabajo del estudio
 - Creación y edición de reservas mediante formularios en un modal.
 - Eliminación de reservas con un modal de confirmación.
 - Registro de cliente, tatuador, precio total y fecha de creación, con una o más sesiones; cada sesión tiene puesto, fecha, horario y estado.
-- Estados de reserva: Pendiente, Confirmada, Completado y Cancelado.
+- Estados de sesión: Programada (azul), Completada (verde) y Cancelada (rojo). El estado de la reserva se calcula a partir de sus sesiones.
 - Filtros por estado y fecha: hoy, últimos siete días y mes actual.
 - Indicadores de total, completadas, canceladas y pendientes que se actualizan con los filtros.
 - Listado paginado con diez reservas por página.
 - 15 puestos que atienden una sesión a la vez; se valida que no se crucen puestos ni tatuadores.
-- Calendario mensual con sesiones identificadas por tatuador y agenda del día organizada por puestos.
+- Calendario semanal (lunes a domingo) con sesiones identificadas por tatuador y agenda del día organizada por puestos.
 - Búsqueda y alta automática de clientes dentro de una reserva; cada cliente nuevo requiere un RUT válido, guardado completo en un solo campo. Los clientes no tienen cuentas ni roles.
 
 ### Módulos por rol
 
 | Rol | Disponibles | Próximamente |
 | --- | --- | --- |
-| Administrador | Calendario, Reservas Generales, Tatuadores | Alertas, Dashboard Gerencial, Perfil, Documentacion |
+| Administrador | Calendario, Reservas, Tatuadores, Espacios | Alertas, Dashboard Gerencial, Perfil, Documentacion |
 | Tatuador | Mis Reservas, Calendario | Alertas, Perfil |
 
 El administrador puede gestionar todas las reservas. El tatuador puede gestionar sus propias reservas y consultar la organización de los puestos en el calendario. Los módulos marcados como «Proximamente» no abren contenido al pulsarlos.

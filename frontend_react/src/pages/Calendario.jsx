@@ -5,20 +5,18 @@ import ReservationModal from "../components/ReservationModal";
 import DeleteReservationModal from "../components/DeleteReservationModal";
 import ReservationDetailsModal from "../components/ReservationDetailsModal";
 import CalendarAgenda from "../components/CalendarAgenda";
+import CreateReservationButton from "../components/CreateReservationButton";
 import LoadingScreen from "../components/LoadingScreen";
-import { monthDays, shiftMonth, todayInSantiago } from "../utils/calendar";
+import { shiftDate, todayInSantiago, weekDays, weekLabel } from "../utils/calendar";
 import { canManageReservation } from "../utils/access";
-import "./Reservas.css";
+import { formatFullDate } from "../utils/format";
 import "./Calendario.css";
 
-const monthFormatter = new Intl.DateTimeFormat("es-CL", { month: "long", year: "numeric", timeZone: "UTC" });
-const dayFormatter = new Intl.DateTimeFormat("es-CL", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 const weekdays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
 export default function Calendario({ user }) {
   const today = todayInSantiago();
   const { sesiones, puestos, catalogos, loading, error, reload, saveReservation, deleteReservation } = useReservations(user);
-  const [month, setMonth] = useState(today.slice(0, 7));
   const [selectedDate, setSelectedDate] = useState(today);
   const [spaceFilter, setSpaceFilter] = useState("todos");
   const [statusFilter, setStatusFilter] = useState("todos");
@@ -32,6 +30,8 @@ export default function Calendario({ user }) {
   ).sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
   const dayReservations = filtered.filter((item) => item.fecha === selectedDate);
   const groups = puestos.filter((puesto) => spaceFilter === "todos" || puesto.id === spaceFilter);
+  // La vista muestra la semana (lunes a domingo) del día seleccionado.
+  const week = weekDays(selectedDate);
 
   // Al hacer clic en una sesión se abre primero su detalle (para todos los usuarios).
   function openDetails(sesion) {
@@ -48,7 +48,6 @@ export default function Calendario({ user }) {
   function openModal(sesion = null) {
     if (sesion && !canManageReservation(user, sesion)) {
       setSelectedDate(sesion.fecha);
-      setMonth(sesion.fecha.slice(0, 7));
       return;
     }
     setMessage("");
@@ -59,7 +58,6 @@ export default function Calendario({ user }) {
     await saveReservation(reserva, modal.reserva?.id);
     const fecha = modal.fecha && reserva.sesiones.some((item) => item.fecha === modal.fecha) ? modal.fecha : reserva.sesiones[0].fecha;
     setSelectedDate(fecha);
-    setMonth(fecha.slice(0, 7));
     setMessage(modal.reserva ? "Reserva actualizada correctamente." : "Reserva creada correctamente.");
   }
 
@@ -68,17 +66,16 @@ export default function Calendario({ user }) {
     setMessage("Reserva borrada correctamente.");
   }
 
-  function navigateMonth(offset) {
-    const next = shiftMonth(month, offset);
-    setMonth(next);
-    setSelectedDate(`${next}-01`);
+  // Semana anterior o siguiente, manteniendo el mismo día de la semana seleccionado.
+  function navigateWeek(offset) {
+    setSelectedDate(shiftDate(selectedDate, offset * 7));
   }
 
   return (
     <div className="calendar-page">
       <p className="dashboard-label">CALENDARIO</p>
       <h1>Calendario del estudio</h1>
-      <p className="dashboard-description">Organiza las sesiones por día, horario y puesto. {user?.role === "tatuador" ? "Puedes editar tus propias reservas." : "Selecciona una reserva para editarla."}</p>
+      <p className="dashboard-description">Organiza las sesiones de la semana por día, horario y puesto. {user?.role === "tatuador" ? "Puedes editar tus propias reservas." : "Selecciona una reserva para editarla."}</p>
       <div className="calendar-toolbar">
         <div className="reservas-filters" role="group" aria-label="Filtros del calendario">
           <label>Puesto
@@ -94,36 +91,37 @@ export default function Calendario({ user }) {
             </select>
           </label>
         </div>
-        <button type="button" className="reservation-button" disabled={loading || Boolean(error)} onClick={() => openModal()}>Crear reserva</button>
+        <CreateReservationButton disabled={loading || Boolean(error)} onClick={() => openModal()} />
       </div>
       {message && <p className="reservation-success" role="status">{message}</p>}
       {loading && <LoadingScreen message="Cargando reservas y puestos…" />}
       {error && <div role="alert"><p>{error}</p><button type="button" className="reservation-button" onClick={reload}>Reintentar</button></div>}
       {!loading && !error && <>
-      <section className="calendar-month" aria-labelledby="calendar-month-title">
+      <section className="calendar-month calendar-week" aria-labelledby="calendar-month-title">
         <div className="calendar-month-header">
-          <h2 id="calendar-month-title" aria-live="polite">{monthFormatter.format(new Date(`${month}-01T12:00:00Z`))}</h2>
+          <h2 id="calendar-month-title" aria-live="polite">{weekLabel(week)}</h2>
           <div className="calendar-navigation">
-            <button type="button" className="reservation-button reservation-button-secondary" onClick={() => navigateMonth(-1)} aria-label="Mes anterior">‹</button>
-            <button type="button" className="reservation-button reservation-button-secondary" onClick={() => { setMonth(today.slice(0, 7)); setSelectedDate(today); }}>Hoy</button>
-            <button type="button" className="reservation-button reservation-button-secondary" onClick={() => navigateMonth(1)} aria-label="Mes siguiente">›</button>
+            <button type="button" className="reservation-button reservation-button-secondary" onClick={() => navigateWeek(-1)} aria-label="Semana anterior">‹</button>
+            <button type="button" className="reservation-button reservation-button-secondary" onClick={() => setSelectedDate(today)}>Hoy</button>
+            <button type="button" className="reservation-button reservation-button-secondary" onClick={() => navigateWeek(1)} aria-label="Semana siguiente">›</button>
           </div>
         </div>
         <div className="calendar-scroll">
           <div className="calendar-grid">
             {weekdays.map((day) => <div className="calendar-weekday" key={day}>{day}</div>)}
-            {monthDays(month).map(({ fecha, day, inMonth }) => {
+            {week.map(({ fecha, day }) => {
               const events = filtered.filter((item) => item.fecha === fecha);
               return (
-                <div className={`calendar-day${!inMonth ? " calendar-day-outside" : ""}${fecha === selectedDate ? " calendar-day-selected" : ""}`} key={fecha}>
-                  <button type="button" className={`calendar-day-number${fecha === today ? " calendar-today" : ""}`} aria-pressed={fecha === selectedDate} aria-label={`${dayFormatter.format(new Date(`${fecha}T12:00:00Z`))}, ${events.length} sesiones`} onClick={() => { setSelectedDate(fecha); setMonth(fecha.slice(0, 7)); }}>{day}</button>
-                  {events.slice(0, 3).map((sesion) => (
+                <div className={`calendar-day${fecha === selectedDate ? " calendar-day-selected" : ""}`} key={fecha}>
+                  <button type="button" className={`calendar-day-number${fecha === today ? " calendar-today" : ""}`} aria-pressed={fecha === selectedDate} aria-label={`${formatFullDate(fecha)}, ${events.length} sesiones`} onClick={() => setSelectedDate(fecha)}>{day}</button>
+                  {/* En la vista semanal hay espacio para mostrar todas las sesiones del día */}
+                  {events.map((sesion) => (
                     <button type="button" className={`calendar-event ${sesion.estado.toLowerCase()}`} key={sesion.id} onClick={() => openDetails(sesion)} title={`${sesion.tatuador} · ${sesion.puesto} · ${sesion.horaInicio}–${sesion.horaFin} · ${sesion.estado}${sesion.total > 1 ? ` · sesión ${sesion.numero} de ${sesion.total}` : ""}`}>
                       <span>{sesion.horaInicio}–{sesion.horaFin} · {sesion.puesto}</span>
                       <strong>{sesion.tatuador}</strong>
                     </button>
                   ))}
-                  {events.length > 3 && <button type="button" className="calendar-more" onClick={() => { setSelectedDate(fecha); setMonth(fecha.slice(0, 7)); }}>Ver {events.length - 3} más</button>}
+                  {events.length === 0 && <p className="calendar-day-empty">Sin sesiones</p>}
                 </div>
               );
             })}

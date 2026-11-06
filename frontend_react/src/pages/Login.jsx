@@ -46,7 +46,6 @@ export default function Login({ setUser }) {
             <p className="login-subtitle">
             Gestión del estudio
             </p>
-            <p>Acceso con una cuenta autorizada por el estudio. Las cuentas mock anteriores ya no están habilitadas.</p>
 
             <form className="login-form" onSubmit={handleSubmit}>
 

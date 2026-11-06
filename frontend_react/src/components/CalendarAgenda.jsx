@@ -1,16 +1,13 @@
 import CalendarReservationCard from "./CalendarReservationCard";
 import { canManageReservation } from "../utils/access";
 import { puestoNumber } from "../utils/puestos";
-
-const dayFormatter = new Intl.DateTimeFormat("es-CL", {
-  weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC",
-});
+import { formatFullDate } from "../utils/format";
 
 export default function CalendarAgenda({ user, selectedDate, sessions, puestos, onView, onDelete }) {
   return (
     <section className="calendar-agenda" aria-labelledby="calendar-agenda-title">
       <h2 id="calendar-agenda-title">
-        Agenda del {dayFormatter.format(new Date(`${selectedDate}T12:00:00Z`))}
+        Agenda del {formatFullDate(selectedDate)}
       </h2>
       <p className="calendar-agenda-description" role="status">
         {sessions.length} sesiones según los filtros. Selecciona una sesión para ver su detalle.

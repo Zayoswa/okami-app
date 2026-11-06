@@ -18,15 +18,14 @@ export function flattenSessions(reservas) {
 // Estado resumido de la reserva a partir de sus sesiones.
 export function reservationStatus(reserva) {
   const sesiones = reserva.sesiones ?? [];
-  const active = sesiones.filter(({ estado }) => estado !== "Cancelado");
-  if (active.length === 0) return "Cancelado";
-  if (active.every(({ estado }) => estado === "Completado")) return "Completado";
-  if (active.some(({ estado }) => estado === "Pendiente")) return "Pendiente";
-  return "Confirmada";
+  const active = sesiones.filter(({ estado }) => estado !== "Cancelada");
+  if (active.length === 0) return "Cancelada";
+  if (active.every(({ estado }) => estado === "Completada")) return "Completada";
+  return "Programada";
 }
 
 export function completedSessions(reserva) {
-  return (reserva.sesiones ?? []).filter(({ estado }) => estado === "Completado").length;
+  return (reserva.sesiones ?? []).filter(({ estado }) => estado === "Completada").length;
 }
 
 // Primera y última fecha de la reserva.
@@ -40,7 +39,7 @@ function overlaps(a, b) {
 }
 
 function isActive(sesion) {
-  return sesion.estado !== "Cancelado";
+  return sesion.estado !== "Cancelada";
 }
 
 // Sesiones de OTRAS reservas que ocupan el mismo puesto en ese horario.
@@ -71,4 +70,15 @@ export function overlappingWithinReservation(sesiones) {
     }
   }));
   return result;
+}
+
+// Datos para guardar la reserva cambiando solo el estado de una sesión; el resto queda igual.
+export function withSessionStatus(reserva, sesionId, estado) {
+  return {
+    id: reserva.id,
+    clienteId: reserva.clienteId,
+    tatuadorId: reserva.tatuadorId,
+    precio: reserva.precio,
+    sesiones: (reserva.sesiones ?? []).map((sesion) => sesion.id === sesionId ? { ...sesion, estado } : sesion),
+  };
 }

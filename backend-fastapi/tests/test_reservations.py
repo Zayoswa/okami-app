@@ -7,7 +7,7 @@ import main
 ACTOR = '11111111-1111-1111-1111-111111111111'
 RESERVA = '22222222-2222-2222-2222-222222222222'
 SESION = dict(id='44444444-4444-4444-4444-444444444444', puestoId=7, fecha='2026-11-10',
-              horaInicio='10:00', horaFin='12:00', estado='Confirmada')
+              horaInicio='10:00', horaFin='12:00', estado='Programada')
 PAYLOAD = dict(id=RESERVA, clienteId='33333333-3333-3333-3333-333333333333',
                tatuadorId=ACTOR, precio=45000, sesiones=[SESION])
 
@@ -41,7 +41,7 @@ class ReservationsTests(unittest.TestCase):
         self.assertEqual(params['p_actor'], ACTOR)
         self.assertEqual(params['p_id'], RESERVA)
         self.assertEqual(params['p_cliente'], PAYLOAD['clienteId'])
-        self.assertEqual(params['p_sesiones'], [{'id': SESION['id'], 'puesto': 7, 'estado': 'Confirmada',
+        self.assertEqual(params['p_sesiones'], [{'id': SESION['id'], 'puesto': 7, 'estado': 'Programada',
                                                  'inicio': '2026-11-10T10:00', 'fin': '2026-11-10T12:00'}])
         self.assertEqual(response.json(), {'id': RESERVA})
 
@@ -109,6 +109,13 @@ class ReservationsTests(unittest.TestCase):
         rpc.assert_not_called()
 
     @patch('main.reservation_rpc')
+    def test_confirmada_is_no_longer_a_valid_state(self, rpc):
+        self.sign_in()
+        response = self.api.post('/api/reservas', json={**PAYLOAD, 'sesiones': [session(estado='Confirmada')]})
+        self.assertEqual(response.status_code, 422)
+        rpc.assert_not_called()
+
+    @patch('main.reservation_rpc')
     def test_reservation_needs_at_least_one_session(self, rpc):
         self.sign_in()
         self.assertEqual(self.api.post('/api/reservas', json={**PAYLOAD, 'sesiones': []}).status_code, 422)
@@ -118,7 +125,7 @@ class ReservationsTests(unittest.TestCase):
     def test_several_sessions_are_sent_in_one_operation(self, rpc):
         self.sign_in()
         rpc.return_value = RESERVA
-        second = session(id='55555555-5555-5555-5555-555555555555', puestoId=3, fecha='2026-11-24', estado='Pendiente')
+        second = session(id='55555555-5555-5555-5555-555555555555', puestoId=3, fecha='2026-11-24', estado='Programada')
         response = self.api.post('/api/reservas', json={**PAYLOAD, 'sesiones': [SESION, second]})
         self.assertEqual(response.status_code, 201)
         sent = rpc.call_args.args[1]['p_sesiones']
@@ -133,7 +140,7 @@ class ReservationsTests(unittest.TestCase):
         self.assertEqual(response.status_code, 422)
         self.assertIn('cruzarse', response.json()['detail'])
         rpc.assert_not_called()
-        cancelled = {**second, 'estado': 'Cancelado'}
+        cancelled = {**second, 'estado': 'Cancelada'}
         rpc.return_value = RESERVA
         self.assertEqual(self.api.post('/api/reservas', json={**PAYLOAD, 'sesiones': [SESION, cancelled]}).status_code, 201)
 
