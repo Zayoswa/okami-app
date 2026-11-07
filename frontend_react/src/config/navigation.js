@@ -1,9 +1,10 @@
 export const navigation = [
   { id: "dashboard", label: "Dashboard Gerencial (Proximamente)", comingSoon: true, roles: ["admin"] },
-  { id: "reservas", path: "/reservas", label: "Reservas Generales", roles: ["admin"] },
+  { id: "reservas", path: "/reservas", label: "Reservas", roles: ["admin"] },
   { id: "mis-reservas", path: "/mis-reservas", label: "Mis reservas", roles: ["tatuador"] },
   { id: "calendario", path: "/calendario", label: "Calendario", roles: ["admin", "tatuador"] },
   { id: "tatuadores", path: "/tatuadores", label: "Tatuadores", roles: ["admin"] },
+  { id: "puestos", path: "/espacios", label: "Espacios", roles: ["admin"] },
   { id: "alertas", label: "Alertas (Proximamente)", comingSoon: true, roles: ["admin", "tatuador"] },
   { id: "perfil", label: "Perfil (Proximamente)", comingSoon: true, roles: ["admin", "tatuador"] },
   { id: "documentacion", label: "Documentacion (Proximamente)", comingSoon: true, roles: ["admin"] },
@@ -11,7 +12,7 @@ export const navigation = [
 
 export function modulesForUser(user) {
   const order = user?.role === "admin"
-    ? ["alertas", "dashboard", "calendario", "reservas", "tatuadores", "perfil", "documentacion"]
+    ? ["alertas", "dashboard", "calendario", "reservas", "tatuadores", "puestos", "perfil", "documentacion"]
     : ["mis-reservas", "calendario", "alertas", "perfil"];
   return order
     .map((id) => navigation.find((module) => module.id === id))

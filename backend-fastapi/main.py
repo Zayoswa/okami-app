@@ -113,18 +113,26 @@ class ActiveRequest(BaseModel):
     activo: bool
 
 
+HOUR_PATTERN = r"^([01][0-9]|2[0-3]):[0-5][0-9]$"
+
+
+class ReservationSession(BaseModel):
+    id: UUID
+    puestoId: int = Field(gt=0)
+    fecha: date
+    horaInicio: str = Field(pattern=HOUR_PATTERN)
+    horaFin: str = Field(pattern=HOUR_PATTERN)
+    estado: Literal['Programada', 'Cancelada', 'Completada']
+
+
 class ReservationRequest(BaseModel):
     clienteId: UUID | None = None
     clienteNombre: str | None = Field(default=None, max_length=120)
-    # RUT completo con dígito verificador; se aceptan puntos, guion y espacios (ej. 12.345.678-K).
+    # RUT completo con dígito verificador (ej. 11222333-K). Se toleran puntos y espacios por compatibilidad.
     clienteRut: str | None = Field(default=None, max_length=16)
     tatuadorId: UUID
-    espacioId: int = Field(gt=0)
     precio: int = Field(ge=0, le=9007199254740991)
-    fecha: date
-    horaInicio: str = Field(pattern=r"^([01][0-9]|2[0-3]):[0-5][0-9]$")
-    horaFin: str = Field(pattern=r"^([01][0-9]|2[0-3]):[0-5][0-9]$")
-    estado: Literal['Pendiente', 'Confirmada', 'Cancelado', 'Completado']
+    sesiones: list[ReservationSession] = Field(min_length=1, max_length=30)
 
 
 class ReservationCreate(ReservationRequest):
@@ -232,29 +240,134 @@ def roles(user=Depends(require_admin)):
         raise HTTPException(503, "No se pudieron consultar los roles.") from exc
 
 
-@app.get("/api/espacios")
-def spaces(user=Depends(get_current_user)):
+def natural_key(name):
+    """Ordena "Puesto 2" antes que "Puesto 10"."""
+    return [int(part) if part.isdigit() else part.casefold() for part in re.split(r"(\d+)", name)]
+
+
+def puesto_db_error(exc, fallback):
+    """Traduce los errores de las reglas de puestos (migración 009) a respuestas claras."""
+    if isinstance(exc, APIError):
+        if exc.code == "P0001":
+            return HTTPException(409, exc.message)
+        if exc.code == "22023":
+            return HTTPException(422, exc.message)
+        if exc.code == "P0002":
+            return HTTPException(404, exc.message)
+        if exc.code == "23505":
+            return HTTPException(409, "Ese tatuador ya es titular de otro puesto.")
+    return HTTPException(503, fallback)
+
+
+@app.get("/api/puestos")
+def puestos(user=Depends(get_current_user)):
     try:
         db = client(admin=True)
-        states = {row["id"]: row["estado"].strip() for row in db.table("espacio_estados").select("id,estado").execute().data}
-        rows = db.table("espacio").select("id,nombre,capacidad,estado_id").order("nombre").execute().data
+        states = {row["id"]: row["estado"].strip() for row in db.table("puesto_estados").select("id,estado").execute().data}
+        rows = db.table("puesto").select("id,nombre,estado_id,tipo").execute().data
+        holders = db.table("puesto_titulares").select("puesto,tatuador").execute().data
+        ids = sorted({row["tatuador"] for row in holders})
+        names = {row["id"]: row["nombre"] for row in db.table("usuarios").select("id,nombre").in_("id", ids).execute().data} if ids else {}
         result = []
-        used = set()
-        for row in rows:
-            # Compatibilidad con las reservas locales, que guardan A–F.
-            legacy = re.fullmatch(r"Espacio ([A-F])", row["nombre"], re.IGNORECASE)
-            code = legacy[1].upper() if legacy else f"db:{row['id']}"
-            if code in used or not isinstance(row["capacidad"], int) or row["capacidad"] < 1:
-                raise HTTPException(503, "Hay espacios duplicados o con capacidad inválida. Revisa el catálogo.")
-            used.add(code)
+        for row in sorted(rows, key=lambda item: natural_key(item["nombre"])):
             state = states.get(row["estado_id"], "Sin estado")
-            available = state.casefold() in ("habilitado", "habiltado")
-            result.append({"id": code, "idBaseDatos": str(row["id"]), "nombre": row["nombre"], "capacidadMaxima": row["capacidad"], "estado": state, "disponible": available})
+            titulares = sorted(({"id": h["tatuador"], "nombre": names.get(h["tatuador"], "Tatuador")}
+                                for h in holders if h["puesto"] == row["id"]), key=lambda t: t["nombre"].casefold())
+            result.append({"id": str(row["id"]), "nombre": row["nombre"], "estado": state,
+                           "estadoId": row["estado_id"], "disponible": state.casefold() == "habilitado",
+                           "tipo": row.get("tipo") or "Rotativo", "titulares": titulares})
         return result
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(503, "No se pudieron cargar los espacios de Supabase.") from exc
+        raise HTTPException(503, "No se pudieron cargar los puestos. Comprueba las migraciones 007, 009 y 010 en Supabase.") from exc
+
+
+@app.get("/api/puestos/estados")
+def puesto_states(admin=Depends(require_admin)):
+    try:
+        return client(admin=True).table("puesto_estados").select("id,estado").order("id").execute().data
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(503, "No se pudieron cargar los estados de los puestos.") from exc
+
+
+class PuestoUpdateRequest(BaseModel):
+    estadoId: int | None = Field(default=None, gt=0)
+    tipo: Literal["Full", "Compartido", "Rotativo"] | None = None
+
+
+# Las sesiones ya agendadas se conservan: un puesto en mantenimiento solo rechaza sesiones nuevas o movidas.
+# Cambiar el tipo falla (409) si el puesto queda con más titulares de los que permite el nuevo tipo.
+@app.patch("/api/puestos/{puesto_id}")
+def update_puesto(puesto_id: int, data: PuestoUpdateRequest, admin=Depends(require_admin)):
+    changes = {}
+    if data.estadoId is not None:
+        changes["estado_id"] = data.estadoId
+    if data.tipo is not None:
+        changes["tipo"] = data.tipo
+    if not changes:
+        raise HTTPException(422, "Indica qué cambiar del puesto.")
+    try:
+        db = client(admin=True)
+        if data.estadoId is not None and not db.table("puesto_estados").select("id").eq("id", data.estadoId).execute().data:
+            raise HTTPException(422, "Selecciona un estado válido.")
+        updated = db.table("puesto").update(changes).eq("id", puesto_id).execute().data
+        if not updated:
+            raise HTTPException(404, "El puesto no existe.")
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise puesto_db_error(exc, "No se pudo actualizar el puesto.") from exc
+
+
+class TitularRequest(BaseModel):
+    tatuadorId: UUID
+
+
+@app.post("/api/puestos/{puesto_id}/titulares", status_code=201)
+def add_titular(puesto_id: int, data: TitularRequest, admin=Depends(require_admin)):
+    tatuador = str(data.tatuadorId)
+    try:
+        db = client(admin=True)
+        rows = db.table("puesto").select("id,nombre,tipo").eq("id", puesto_id).execute().data
+        if not rows:
+            raise HTTPException(404, "El puesto no existe.")
+        puesto = rows[0]
+        users = db.table("usuarios").select("id,nombre,rol,activo").eq("id", tatuador).execute().data
+        roles = db.table("rol").select("nombre").eq("id", users[0]["rol"]).execute().data if users else []
+        if not users or not roles or roles[0]["nombre"].strip().lower() != "tatuador":
+            raise HTTPException(422, "Selecciona un tatuador válido.")
+        if not users[0]["activo"]:
+            raise HTTPException(422, f"{users[0]['nombre']} está desactivado.")
+        current = db.table("puesto_titulares").select("puesto").eq("tatuador", tatuador).execute().data
+        if current:
+            if current[0]["puesto"] == puesto_id:
+                raise HTTPException(409, f"{users[0]['nombre']} ya es titular de {puesto['nombre']}.")
+            other = db.table("puesto").select("nombre").eq("id", current[0]["puesto"]).execute().data
+            raise HTTPException(409, f"{users[0]['nombre']} ya es titular de {other[0]['nombre'] if other else 'otro puesto'}. Quítalo de ahí primero.")
+        # El cupo según el tipo lo valida el trigger de la migración 009 (sin carreras entre dos admins).
+        db.table("puesto_titulares").insert({"puesto": puesto_id, "tatuador": tatuador}).execute()
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise puesto_db_error(exc, "No se pudo asignar el titular.") from exc
+
+
+@app.delete("/api/puestos/{puesto_id}/titulares/{tatuador_id}")
+def remove_titular(puesto_id: int, tatuador_id: UUID, admin=Depends(require_admin)):
+    try:
+        deleted = client(admin=True).table("puesto_titulares").delete().eq("puesto", puesto_id).eq("tatuador", str(tatuador_id)).execute().data
+        if not deleted:
+            raise HTTPException(404, "Ese tatuador no es titular de este puesto.")
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise puesto_db_error(exc, "No se pudo quitar el titular.") from exc
 
 
 @app.post("/api/usuarios/invitaciones", status_code=201)
@@ -346,7 +459,7 @@ def rut_error(rut):
     if not rut:
         return 'Ingresa el RUT del cliente con su dígito verificador.'
     if not re.fullmatch(r'\d{1,9}[0-9K]', rut) or set(rut[:-1]) == {'0'}:
-        return 'Ingresa un RUT válido, por ejemplo 12.345.678-5.'
+        return 'Ingresa un RUT válido, sin puntos y con guion. Ej: 12345678-5.'
     total = sum(int(digit) * (2 + index % 6) for index, digit in enumerate(reversed(rut[:-1])))
     expected = {11: '0', 10: 'K'}.get(11 - total % 11, str(11 - total % 11))
     if rut[-1] != expected:
@@ -354,11 +467,26 @@ def rut_error(rut):
     return ''
 
 
+def sessions_error(sessions):
+    if len({session.id for session in sessions}) != len(sessions):
+        return 'Cada sesión necesita un identificador distinto.'
+    for session in sessions:
+        if time.fromisoformat(session.horaFin) <= time.fromisoformat(session.horaInicio):
+            return 'La hora de término de cada sesión debe ser posterior a la de inicio.'
+    active = [s for s in sessions if s.estado != 'Cancelada']
+    for index, first in enumerate(active):
+        for second in active[index + 1:]:
+            if first.fecha == second.fecha and first.horaInicio < second.horaFin and second.horaInicio < first.horaFin:
+                return 'Las sesiones de esta reserva no pueden cruzarse entre sí.'
+    return ''
+
+
 def write_reservation(operation, reservation_id, data, user):
     params = {'p_actor': user['id'], 'p_operacion': operation, 'p_id': str(reservation_id)}
     if data is not None:
-        if time.fromisoformat(data.horaFin) <= time.fromisoformat(data.horaInicio):
-            raise HTTPException(422, 'La hora de término debe ser posterior a la de inicio.')
+        error = sessions_error(data.sesiones)
+        if error:
+            raise HTTPException(422, error)
         rut = None
         if not data.clienteId:
             rut = normalize_rut(data.clienteRut)
@@ -368,10 +496,11 @@ def write_reservation(operation, reservation_id, data, user):
         params.update(p_cliente=str(data.clienteId) if data.clienteId else None,
                       p_cliente_nombre=data.clienteNombre.strip() if data.clienteNombre else None,
                       p_cliente_rut=rut,
-                      p_tatuador=str(data.tatuadorId), p_espacio=data.espacioId,
-                      p_precio=data.precio, p_inicio=f'{data.fecha}T{data.horaInicio}',
-                      p_fin=f'{data.fecha}T{data.horaFin}', p_estado=data.estado)
-    return {'id': reservation_rpc('okami_mutar_reserva_cliente_rut', params)}
+                      p_tatuador=str(data.tatuadorId), p_precio=data.precio,
+                      p_sesiones=[{'id': str(s.id), 'puesto': s.puestoId, 'estado': s.estado,
+                                   'inicio': f'{s.fecha}T{s.horaInicio}', 'fin': f'{s.fecha}T{s.horaFin}'}
+                                  for s in data.sesiones])
+    return {'id': reservation_rpc('okami_guardar_reserva', params)}
 
 
 @app.post('/api/reservas', status_code=201)

@@ -1,20 +1,28 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isFutureReservationStart, monthDays, shiftMonth, todayInSantiago } from "../src/utils/calendar.js";
+import { isFutureReservationStart, shiftDate, todayInSantiago, weekDays, weekLabel } from "../src/utils/calendar.js";
 
-test("el calendario empieza el lunes y contiene todos los días del mes", () => {
-  const days = monthDays("2026-10");
-  assert.equal(days[0].fecha, "2026-09-28");
-  assert.equal(days.length % 7, 0);
-  assert.equal(days.filter((day) => day.inMonth).length, 31);
-  assert.equal(days.at(-1).fecha, "2026-11-01");
+test("la semana va de lunes a domingo y contiene la fecha", () => {
+  const days = weekDays("2026-11-06"); // viernes
+  assert.equal(days.length, 7);
+  assert.equal(days[0].fecha, "2026-11-02");
+  assert.equal(days.at(-1).fecha, "2026-11-08");
+  assert.equal(weekDays("2026-11-02")[0].fecha, "2026-11-02"); // lunes
+  assert.equal(weekDays("2026-11-08")[0].fecha, "2026-11-02"); // domingo
 });
 
-test("el calendario respeta años bisiestos y cambios de año", () => {
-  assert.equal(monthDays("2028-02").filter((day) => day.inMonth).length, 29);
-  assert.equal(monthDays("2027-02").filter((day) => day.inMonth).length, 28);
-  assert.equal(shiftMonth("2026-12", 1), "2027-01");
-  assert.equal(shiftMonth("2026-01", -1), "2025-12");
+test("la semana cruza meses y años correctamente", () => {
+  assert.deepEqual(weekDays("2026-12-31").map(({ fecha }) => fecha), [
+    "2026-12-28", "2026-12-29", "2026-12-30", "2026-12-31", "2027-01-01", "2027-01-02", "2027-01-03",
+  ]);
+  assert.equal(shiftDate("2028-02-28", 1), "2028-02-29");
+  assert.equal(shiftDate("2026-11-02", -7), "2026-10-26");
+});
+
+test("el título de la semana se adapta al mes y al año", () => {
+  assert.equal(weekLabel(weekDays("2026-11-06")), "2 – 8 de noviembre de 2026");
+  assert.equal(weekLabel(weekDays("2026-11-30")), "30 de noviembre – 6 de diciembre de 2026");
+  assert.equal(weekLabel(weekDays("2026-12-31")), "28 de diciembre de 2026 – 3 de enero de 2027");
 });
 
 test("Hoy usa la fecha de Santiago", () => {

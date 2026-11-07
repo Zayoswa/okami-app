@@ -22,3 +22,7 @@ Thumbs.db
 
 # Instalaciones accidentales en la raíz
 /node_modules/
+
+# Herramientas locales de IA
+.claude/
+CLAUDE.md

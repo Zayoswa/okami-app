@@ -1,22 +1,22 @@
-import { todayInSantiago } from "./calendar.js";
+import { reservationStatus } from "./sessions.js";
 
-export function filterReservations(reservas, estado, periodo, now = new Date()) {
-  const today = todayInSantiago(now);
-  const weekStart = new Date(`${today}T12:00:00Z`);
-  weekStart.setUTCDate(weekStart.getUTCDate() - 6);
-  const weekStartKey = weekStart.toISOString().slice(0, 10);
-
-  return reservas.filter((reserva) => {
-    if (estado !== "todos" && reserva.estado !== estado) return false;
-    if (periodo === "hoy") return reserva.fecha === today;
-    if (periodo === "semana") return reserva.fecha >= weekStartKey && reserva.fecha <= today;
-    if (periodo === "mes") return reserva.fecha.slice(0, 7) === today.slice(0, 7);
-    return true;
-  });
+// Ignora mayúsculas y tildes: "jose" encuentra "José".
+function plain(value) {
+  return String(value ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLocaleLowerCase("es-CL");
 }
 
-export function filterReservationsByCustomer(reservas, query) {
-  const normalized = query.trim().toLocaleLowerCase("es-CL");
-  if (!normalized) return reservas;
-  return reservas.filter((reserva) => reserva.cliente?.toLocaleLowerCase("es-CL").includes(normalized));
+// Filtros del listado de Reservas:
+// - busqueda: nombre del cliente o del tatuador;
+// - fecha: "YYYY-MM-DD", la reserva coincide si tiene una sesión ese día;
+// - estado: estado de la reserva (resumen de sus sesiones) o "todos".
+export const emptyReservationFilters = { busqueda: "", fecha: "", estado: "todos" };
+
+export function filterReservationList(reservas, { busqueda = "", fecha = "", estado = "todos" } = {}) {
+  const query = plain(busqueda.trim());
+  return reservas.filter((reserva) => {
+    if (estado !== "todos" && reservationStatus(reserva) !== estado) return false;
+    if (fecha && !(reserva.sesiones ?? []).some((sesion) => sesion.fecha === fecha)) return false;
+    if (query && ![reserva.cliente, reserva.tatuador].some((nombre) => plain(nombre).includes(query))) return false;
+    return true;
+  });
 }

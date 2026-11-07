@@ -1,6 +1,6 @@
-# Okami — Gestión de reservas y espacios
+# Okami — Gestión de reservas y puestos
 
-Aplicación web para coordinar las reservas y los espacios de trabajo del estudio de tatuajes Okami. Centraliza la información de las sesiones y facilita la organización del administrador y los tatuadores.
+Aplicación web para coordinar las reservas y los puestos de trabajo del estudio de tatuajes Okami. Centraliza la información de las sesiones y facilita la organización del administrador y los tatuadores.
 
 **Estado del proyecto:** acceso y reservas mediante Supabase. Para activar las reservas en una instalación existente, sigue la [guía de reservas reales](docs/reservas-reales.md).
 
@@ -11,23 +11,23 @@ Aplicación web para coordinar las reservas y los espacios de trabajo del estudi
 - Acceso diferenciado para administrador y tatuador, con cierre de sesión.
 - Creación y edición de reservas mediante formularios en un modal.
 - Eliminación de reservas con un modal de confirmación.
-- Registro de cliente, tatuador, precio, espacio, fecha, hora de inicio y término, estado y fecha de creación.
-- Estados de reserva: Pendiente, Confirmada, Completado y Cancelado.
+- Registro de cliente, tatuador, precio total y fecha de creación, con una o más sesiones; cada sesión tiene puesto, fecha, horario y estado.
+- Estados de sesión: Programada (azul), Completada (verde) y Cancelada (rojo). El estado de la reserva se calcula a partir de sus sesiones.
 - Filtros por estado y fecha: hoy, últimos siete días y mes actual.
 - Indicadores de total, completadas, canceladas y pendientes que se actualizan con los filtros.
-- Listado paginado con siete reservas por página.
-- Resumen de ocupación por espacio y validación de capacidad.
-- Calendario mensual con sesiones identificadas por tatuador y agenda del día organizada por espacios.
+- Listado paginado con diez reservas por página.
+- 15 puestos que atienden una sesión a la vez; se valida que no se crucen puestos ni tatuadores.
+- Calendario semanal (lunes a domingo) con sesiones identificadas por tatuador y agenda del día organizada por puestos.
 - Búsqueda y alta automática de clientes dentro de una reserva; cada cliente nuevo requiere un RUT válido, guardado completo en un solo campo. Los clientes no tienen cuentas ni roles.
 
 ### Módulos por rol
 
 | Rol | Disponibles | Próximamente |
 | --- | --- | --- |
-| Administrador | Calendario, Reservas Generales, Tatuadores | Alertas, Dashboard Gerencial, Perfil, Documentacion |
+| Administrador | Calendario, Reservas, Tatuadores, Espacios | Alertas, Dashboard Gerencial, Perfil, Documentacion |
 | Tatuador | Mis Reservas, Calendario | Alertas, Perfil |
 
-El administrador puede gestionar todas las reservas. El tatuador puede gestionar sus propias reservas y consultar la organización de los espacios en el calendario. Los módulos marcados como «Proximamente» no abren contenido al pulsarlos.
+El administrador puede gestionar todas las reservas. El tatuador puede gestionar sus propias reservas y consultar la organización de los puestos en el calendario. Los módulos marcados como «Proximamente» no abren contenido al pulsarlos.
 
 ## Tecnologías
 
@@ -142,22 +142,11 @@ El archivo `.env.local` está excluido de Git. Las variables con prefijo `VITE_`
 
 ## Datos y reglas de la demostración
 
-Los datos iniciales están en `frontend_react/src/data`: reservas, ejemplos históricos, un catálogo de treinta tatuadores y los espacios del estudio.
+El estudio tiene 15 puestos (`Puesto 1` a `Puesto 15`). Cada puesto atiende una sesión a la vez y los tatuadores rotan entre ellos. Un puesto en mantenimiento no acepta sesiones nuevas. Las sesiones canceladas no ocupan el puesto.
 
-| Espacio | Capacidad |
-| --- | --- |
-| A | 3 personas |
-| B | 2 personas |
-| C | 4 personas |
-| D | 1 persona |
-| E | 2 personas |
-| F | 3 personas |
+La agenda, los puestos y las reservas se consultan desde Supabase. Para activar los puestos y las reservas con varias sesiones, ejecutar la migración `007_puestos_y_sesiones.sql` descrita en [Reservas reales](docs/reservas-reales.md).
 
-El resumen de ocupación cuenta todas las reservas pendientes asignadas a cada espacio. La validación aplica ese límite y también comprueba las sesiones que se superponen en fecha y horario. Las reservas canceladas no ocupan cupos.
-
-La agenda, los espacios y las reservas se consultan desde Supabase. Las reservas antiguas del navegador no se importan.
-
-Los clientes son registros del estudio: se pueden buscar por nombre o RUT desde una reserva. Si no existe una coincidencia, el tatuador o administrador puede crearlo al guardar esa misma reserva. Para activar este flujo y bloquear espacios en mantenimiento, ejecutar la migración `005_clientes_y_espacios_disponibles.sql` descrita en [Reservas reales](docs/reservas-reales.md).
+Los clientes son registros del estudio: se pueden buscar por nombre o RUT desde una reserva. Si no existe una coincidencia, el tatuador o administrador puede crearlo al guardar esa misma reserva. Para activar este flujo, ejecutar las migraciones `005` y `006` descrita en [Reservas reales](docs/reservas-reales.md).
 
 ## Estructura del proyecto
 
@@ -203,4 +192,4 @@ El resultado se genera en `frontend_react/dist`. Para revisarlo localmente, ejec
 - Alta y gestión de clientes desde la aplicación.
 - Desarrollo de los módulos marcados como «Proximamente».
 
-Este repositorio presenta el avance funcional del flujo de reservas y la coordinación de espacios; todavía no corresponde a una versión lista para producción.
+Este repositorio presenta el avance funcional del flujo de reservas y la coordinación de puestos; todavía no corresponde a una versión lista para producción.

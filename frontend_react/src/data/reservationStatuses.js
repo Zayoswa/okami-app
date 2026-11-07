@@ -1,6 +1,5 @@
 export const reservationStatuses = [
-  { estado: "Completado", etiqueta: "Reservas completadas" },
-  { estado: "Cancelado", etiqueta: "Reservas canceladas" },
-  { estado: "Pendiente", etiqueta: "Reservas pendientes" },
-  { estado: "Confirmada", etiqueta: "Reservas confirmadas" },
+  { estado: "Completada", etiqueta: "Reservas completadas" },
+  { estado: "Cancelada", etiqueta: "Reservas canceladas" },
+  { estado: "Programada", etiqueta: "Reservas programadas" },
 ];

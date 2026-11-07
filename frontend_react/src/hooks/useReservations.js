@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
-import { authRequest } from "../services/authService.js";
+import { useEffect, useMemo, useState } from "react";
 import { reservationsRepository } from "../services/reservationsRepository.js";
+import { flattenSessions } from "../utils/sessions.js";
 
 export default function useReservations(user, repository = reservationsRepository) {
   const [catalogos, setCatalogos] = useState({ tatuadores: [] });
-  const [espacios, setEspacios] = useState([]);
+  const [puestos, setPuestos] = useState([]);
   const [reservas, setReservas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -14,9 +14,9 @@ export default function useReservations(user, repository = reservationsRepositor
     let active = true;
     async function load() {
       try {
-        const [rows, spaces, catalogs] = await Promise.all([repository.list(user), authRequest("/api/espacios"), repository.catalogs()]);
-        if (!spaces.length) throw new Error("No hay espacios configurados en el estudio.");
-        if (active) { setReservas(rows); setEspacios(spaces); setCatalogos(catalogs); }
+        const [rows, stations, catalogs] = await Promise.all([repository.list(user), repository.puestos(), repository.catalogs()]);
+        if (!stations.length) throw new Error("No hay puestos configurados en el estudio.");
+        if (active) { setReservas(rows); setPuestos(stations); setCatalogos(catalogs); }
       } catch (cause) {
         if (active) setError(cause instanceof Error ? cause.message : "No se pudieron cargar las reservas.");
       } finally {
@@ -34,7 +34,7 @@ export default function useReservations(user, repository = reservationsRepositor
   }
 
   async function saveReservation(reserva, editingId) {
-    await repository.save(user, reserva, editingId, espacios);
+    await repository.save(user, reserva, editingId);
     await refreshAfterMutation();
   }
 
@@ -48,5 +48,7 @@ export default function useReservations(user, repository = reservationsRepositor
     catch { setError("El cambio se guardó, pero no se pudo actualizar la agenda. Pulsa Reintentar."); }
   }
 
-  return { reservas, espacios, catalogos, loading, error, reload, saveReservation, deleteReservation };
+  const sesiones = useMemo(() => flattenSessions(reservas), [reservas]);
+
+  return { reservas, sesiones, puestos, catalogos, loading, error, reload, saveReservation, deleteReservation };
 }

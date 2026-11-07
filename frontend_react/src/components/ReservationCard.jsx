@@ -1,72 +1,54 @@
+import { completedSessions, reservationStatus } from "../utils/sessions";
+import { formatDate, formatDateTime, formatPrice } from "../utils/format";
+import StatusMenu from "./StatusMenu";
 
-const priceFormatter = new Intl.NumberFormat("es-CL", {
-    style: "currency",
-    currency: "CLP",
-    maximumFractionDigits: 0,
-});
-
-const dateFormatter = new Intl.DateTimeFormat("es-CL", {
-    day: "2-digit", month: "2-digit", year: "numeric",
-});
-
-const creationFormatter = new Intl.DateTimeFormat("es-CL", {
-    day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
-});
-
-export default function ReservationCard({ espacios, reserva, onEdit, onDelete }) {
-    const espacio = espacios.find((item) => item.id === reserva.espacioId);
-    return (
-        <article className="reserva-card">
-        <div className="reserva-main">
-            <div>
-            <p className="reserva-field-label">Nombre del cliente</p>
-            <p className="reserva-cliente">{reserva.cliente}</p>
-            <p className="reserva-tatuador">Nombre del tatuador: {reserva.tatuador}</p>
-            </div>
-
-            <div className="reserva-controls">
-            <div className="reservation-card-actions">
-                <button type="button" className="reservation-button reservation-button-secondary" onClick={() => onEdit(reserva)} aria-label={`Editar reserva de ${reserva.cliente}`}>Editar</button>
-                <button type="button" className="reservation-button reservation-button-danger" onClick={() => onDelete(reserva)} aria-label={`Borrar reserva de ${reserva.cliente}`}>Borrar</button>
-            </div>
-            <div className="reserva-status">
-            <span className="reserva-field-label">Status</span>
-            <span className={`reserva-estado ${reserva.estado.toLowerCase()}`}>
-            {reserva.estado}
-            </span>
-            </div>
-            </div>
+// Tarjeta de una reserva en el listado: datos clave, acciones y sus sesiones.
+// El primer botón muestra el estado de la reserva y abre una ventana pequeña para cambiarlo.
+export default function ReservationCard({ reserva, onChangeStatus, onView, onEdit, onDelete }) {
+  const estado = reservationStatus(reserva);
+  const sesiones = reserva.sesiones ?? [];
+  return (
+    <article className={`reserva-card ${estado.toLowerCase()}`}>
+      {/* Fila principal compacta: quién, datos clave, estado y acciones en una línea */}
+      <div className="reserva-main">
+        <div className="reserva-identity">
+          <p className="reserva-cliente">{reserva.cliente}</p>
+          <p className="reserva-tatuador">Tatuador: {reserva.tatuador}</p>
         </div>
 
-        <div className="reserva-info">
-            <span>
-            Espacio
-            <strong>{espacio?.nombre ?? "Sin asignar"}</strong>
-            </span>
-            <span>
-            Precio
-            <strong>{priceFormatter.format(reserva.precio)}</strong>
-            </span>
+        <dl className="reserva-info">
+          <div>
+            <dt>Precio</dt>
+            <dd className="reserva-precio">{formatPrice(reserva.precio)}</dd>
+          </div>
+          <div>
+            <dt>Avance</dt>
+            <dd>{completedSessions(reserva)} de {sesiones.length} {sesiones.length === 1 ? "sesión" : "sesiones"}</dd>
+          </div>
+          <div>
+            <dt>Creada</dt>
+            <dd><time dateTime={reserva.fechaCreacion}>{formatDateTime(reserva.fechaCreacion)}</time></dd>
+          </div>
+        </dl>
 
-            <span>
-            Fecha y horario
-            <strong>
-                <time dateTime={`${reserva.fecha}T${reserva.horaInicio}`}>
-                    {dateFormatter.format(new Date(`${reserva.fecha}T${reserva.horaInicio}`))} · {reserva.horaInicio} – {reserva.horaFin}
-                </time>
-            </strong>
-            </span>
-
-            <span>
-            Fecha de creación del ticket
-            <strong>
-                <time dateTime={reserva.fechaCreacion}>
-                    {creationFormatter.format(new Date(reserva.fechaCreacion))}
-                </time>
-            </strong>
-            </span>
+        <div className="reservation-card-actions">
+          <StatusMenu reserva={reserva} onChange={onChangeStatus} />
+          <button type="button" className="reservation-button reservation-button-secondary" onClick={() => onView(reserva)} aria-label={`Ver detalles de la reserva de ${reserva.cliente}`}>Detalles</button>
+          <button type="button" className="reservation-button reservation-button-secondary" onClick={() => onEdit(reserva)} aria-label={`Editar reserva de ${reserva.cliente}`}>Editar</button>
+          <button type="button" className="reservation-button reservation-button-danger" onClick={() => onDelete(reserva)} aria-label={`Borrar reserva de ${reserva.cliente}`}>Borrar</button>
         </div>
-        </article>
-    );
-    }
+      </div>
+
+      <ol className="reserva-sesiones" aria-label={`Sesiones de la reserva de ${reserva.cliente}`}>
+        {sesiones.map((sesion, index) => (
+          <li key={sesion.id}>
+            <span className="reserva-sesion-numero">Sesión {index + 1}</span>
+            <time dateTime={`${sesion.fecha}T${sesion.horaInicio}`}>{formatDate(sesion.fecha)} · {sesion.horaInicio} – {sesion.horaFin}</time>
+            <span>{sesion.puesto}</span>
+            <span className={`reserva-estado ${sesion.estado.toLowerCase()}`}>{sesion.estado}</span>
+          </li>
+        ))}
+      </ol>
+    </article>
+  );
+}

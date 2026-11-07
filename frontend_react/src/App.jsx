@@ -8,6 +8,7 @@ import LoadingScreen from "./components/LoadingScreen";
 
 import { restoreSession, signOut } from "./services/authService";
 import Invitacion from "./pages/Invitacion";
+import Espacios from "./pages/Espacios";
 
 // Los módulos se cargan bajo demanda; mientras llega su código,
 // el <Suspense> de Dashboard muestra la pantalla de carga.
@@ -54,6 +55,7 @@ function App() {
         <Route path="reservas" element={<ModuleAccess user={user} moduleId="reservas"><Reservas user={user} /></ModuleAccess>} />
         <Route path="mis-reservas" element={<ModuleAccess user={user} moduleId="mis-reservas"><MisReservas user={user} /></ModuleAccess>} />
         <Route path="tatuadores" element={<ModuleAccess user={user} moduleId="tatuadores"><Tatuadores /></ModuleAccess>} />
+        <Route path="espacios" element={<ModuleAccess user={user} moduleId="puestos"><Espacios user={user} /></ModuleAccess>} />
         <Route path="calendario" element={<ModuleAccess user={user} moduleId="calendario"><Calendario user={user} /></ModuleAccess>} />
       </Route>
 

@@ -1,0 +1,103 @@
+/* =========================
+   MENÚ DE ESTADO (tarjetas de Reservas)
+   Botón con el estado y, al pulsarlo, una ventana pequeña anclada debajo
+   para elegir Programada / Completada / Cancelada en cada sesión.
+========================= */
+
+.status-menu {
+  position: relative;
+}
+
+.status-menu-caret {
+  margin-left: 4px;
+  font-size: 10px;
+}
+
+.status-menu-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  display: grid;
+  gap: 10px;
+  width: max-content;
+  max-width: min(340px, calc(100vw - 32px));
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
+}
+
+.status-menu-row {
+  display: grid;
+  gap: 6px;
+}
+
+.status-menu-row + .status-menu-row {
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border-soft);
+}
+
+.status-menu-session {
+  font-size: 11px;
+  color: var(--color-muted);
+}
+
+.status-menu-session strong {
+  color: var(--color-text);
+}
+
+.status-menu-options {
+  display: flex;
+  gap: 6px;
+}
+
+.status-menu-option {
+  padding: 5px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text-soft);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.status-menu-option:hover:not(:disabled) {
+  border-color: var(--color-dark);
+}
+
+.status-menu-option:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+}
+
+.status-menu-option:disabled {
+  cursor: wait;
+}
+
+.status-menu-option.programada.status-menu-option-active {
+  border-color: var(--color-pending-border);
+  background: var(--color-pending-bg-strong);
+  color: var(--color-pending);
+}
+
+.status-menu-option.completada.status-menu-option-active {
+  border-color: var(--color-success);
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.status-menu-option.cancelada.status-menu-option-active {
+  border-color: var(--color-danger);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.status-menu-error {
+  max-width: 300px;
+  font-size: 12px;
+  color: var(--color-danger);
+}
