@@ -1,5 +1,5 @@
 export const navigation = [
-  { id: "dashboard", label: "Dashboard Gerencial (Proximamente)", comingSoon: true, roles: ["admin"] },
+  { id: "dashboard", path: "/dashboard", label: "Dashboard", roles: ["admin"] },
   { id: "reservas", path: "/reservas", label: "Reservas", roles: ["admin"] },
   { id: "mis-reservas", path: "/mis-reservas", label: "Mis reservas", roles: ["tatuador"] },
   { id: "calendario", path: "/calendario", label: "Calendario", roles: ["admin", "tatuador"] },
