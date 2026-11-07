@@ -86,6 +86,14 @@ class LoginRequest(BaseModel):
     email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=1, max_length=1024)
 
+class CreateUser(BaseModel):
+    email: str = Field(pattern=r"^[^\s@]+@[^\s@]+\.[^\s@]+$", max_length=254)
+    nombre: str = Field(min_length=1, max_length=120)
+    rol: int 
+    modalidad: int | None 
+    activo: bool = Field(default=False)
+
+
 
 class SessionRequest(BaseModel):
     refresh_token: str = Field(min_length=1)
@@ -213,6 +221,15 @@ def modalities(user=Depends(require_admin)):
         raise
     except Exception as exc:
         raise HTTPException(503, "No se pudieron consultar las modalidades.") from exc
+
+@app.get("/api/rol/")
+def roles(user=Depends(require_admin)):
+    try:
+        return client(admin=True).table("rol").select("id,nombre").execute().data
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(503, "No se pudieron consultar los roles.") from exc
 
 
 @app.get("/api/espacios")
@@ -370,3 +387,39 @@ def edit_reservation(reservation_id: UUID, data: ReservationRequest, user=Depend
 @app.delete('/api/reservas/{reservation_id}')
 def delete_reservation(reservation_id: UUID, user=Depends(get_current_user)):
     return write_reservation('borrar', reservation_id, None, user)
+
+@app.post("/api/usuarios/")
+def user_create(
+    new_user: CreateUser,
+    admin=Depends(require_admin)
+    ):
+    print("POST REACHED")
+    try:
+        auth_result = supabase.auth.admin.create_user({
+            "email": new_user.email,
+            "password": new_user.password,
+            "email_confirm": False
+        })
+        user_id = auth_result.user.id
+        db = client(admin=True)
+        new_user_in_table = db.table(
+            "usuarios"
+        ).insert({
+            "id": str(user_id),                    
+            "rol":  new_user.rol,
+            "modalidad": new_user.modalidad,
+            "nombre": new_user.nombre,
+            "activo": new_user.activo
+        }).execute()
+
+        return {
+            "message": "Usuario creado exitosamente",
+                "id": str(user_id),
+                "rol": new_user.rol,
+                "modalidad": new_user.modalidad
+                }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(503, "No se pudo realizar la operación de registro") from exc
+
