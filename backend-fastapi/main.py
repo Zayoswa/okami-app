@@ -94,11 +94,10 @@ class CreateUser(BaseModel):
     
     nombre: str = Field(min_length=1, max_length=120)
     email: str = Field(pattern=r"^[^\s@]+@[^\s@]+\.[^\s@]+$", max_length=254)
-    password: str = Field(min_length=12, max_length=128)
-    rol: int = Field(gt=0)
-    modalidad: int | None = Field(default=None, gt=0)
-
-
+    password: str = Field(min_length=8, max_length=128)
+    rol: int 
+    modalidad: int 
+    activo: bool = Field(default=True)
 
 class SessionRequest(BaseModel):
     refresh_token: str = Field(min_length=1)
@@ -823,63 +822,6 @@ def delete_rent_payment(pago_id: UUID, admin=Depends(require_admin)):
     return {'ok': True}
 
 
-# ---------- Registro manual de usuarios (commit "Registro") ----------
-# Crea la cuenta en Auth con el correo ya confirmado, para que pueda entrar de inmediato con esa contraseña.
-# El trigger de la migración 001 crea su perfil en usuarios (como tatuador, activo y con la modalidad
-# de los metadatos); después se ajustan el nombre y el rol elegido. Si el perfil falla, se borra la cuenta.
-@app.post("/api/usuarios/", status_code=201)
-def user_create(new_user: CreateUser, admin=Depends(require_admin)):
-    nombre = " ".join(new_user.nombre.split())
-    email = new_user.email.strip().lower()
-    if not nombre:
-        raise HTTPException(422, "El nombre es obligatorio.")
-    db = client(admin=True)
-    try:
-        roles = {r["id"]: r["nombre"].strip().lower() for r in db.table("rol").select("id,nombre").execute().data}
-        modalidades = modality_names(db)
-    except Exception as exc:
-        raise HTTPException(503, "No se pudieron consultar los roles y modalidades.") from exc
-    rol = roles.get(new_user.rol)
-    if rol not in ("admin", "tatuador"):
-        raise HTTPException(422, "Selecciona un rol válido.")
-    # Solo los tatuadores tienen modalidad (define su arriendo).
-    modalidad = new_user.modalidad if rol == "tatuador" else None
-    if rol == "tatuador" and modalidad is None:
-        raise HTTPException(422, "Selecciona la modalidad del tatuador.")
-    if modalidad is not None and modalidad not in modalidades:
-        raise HTTPException(422, "Selecciona una modalidad válida.")
-    try:
-        auth_result = db.auth.admin.create_user({
-            "email": email,
-            "password": new_user.password,
-            "email_confirm": True,
-            "user_metadata": {"nombre": nombre, "modalidad": modalidad},
-        })
-    except Exception as exc:
-        text = str(exc).lower()
-        if "already" in text or "registered" in text or "exists" in text:
-            raise HTTPException(409, "Ya existe una cuenta con ese correo.") from exc
-        if "password" in text:
-            raise HTTPException(422, "La contraseña no cumple los requisitos de seguridad.") from exc
-        raise HTTPException(400, "No se pudo crear la cuenta. Revisa el correo y la contraseña.") from exc
-    user_id = str(auth_result.user.id)
-    try:
-        updated = db.table("usuarios").update({"nombre": nombre, "rol": new_user.rol, "activo": True}).eq("id", user_id).execute().data
-        if not updated:
-            db.table("usuarios").insert({"id": user_id, "nombre": nombre, "rol": new_user.rol,
-                                         "modalidad": modalidad, "activo": True}).execute()
-    except Exception as exc:
-        try:
-            db.auth.admin.delete_user(user_id)
-        except Exception:
-            pass
-        raise HTTPException(503, "No se pudo crear el perfil del usuario. No se guardó nada; intenta nuevamente.") from exc
-    log_event(admin, "tatuador", "registro",
-              f"Registró a {nombre} ({email}) como {rol}" + (f" con modalidad {modalidades.get(modalidad)}." if modalidad else "."), user_id)
-    return {"message": f"{nombre} quedó registrado como {rol}. Ya puede iniciar sesión con su correo y contraseña.",
-            "id": user_id, "rol": new_user.rol, "modalidad": modalidad}
-
-
 # ---------- Registro de actividad (solo admin) ----------
 TEXT_FILTER = re.compile(r"[^\w\s@.\-]")
 
@@ -919,3 +861,46 @@ def activity_log(
     except Exception as exc:
         raise HTTPException(503, 'No se pudo cargar la actividad. Comprueba la migración 014 en Supabase.') from exc
     return {'registros': rows[:limite], 'hayMas': len(rows) > limite}
+
+# ---------- Registro manual de usuarios (commit "Registro") ----------
+# Crea la cuenta en Auth con el correo ya confirmado, para que pueda entrar de inmediato con esa contraseña.
+# El trigger de la migración 001 crea su perfil en usuarios (como tatuador, activo y con la modalidad
+# de los metadatos); después se ajustan el nombre y el rol elegido. Si el perfil falla, se borra la cuenta.
+@app.post("/api/usuarios/")
+def user_create( new_user: CreateUser, admin=Depends(require_admin)):
+    user_id: None
+    try:
+        db = client(admin=True)
+        print("cocknected as fuck")
+        auth_result = db.auth.admin.create_user({
+            "email": new_user.email,
+            "password": new_user.password,
+            "email_confirm": True
+        })
+        user_id = auth_result.user.id
+
+        print("bitch made", user_id)
+        db = client(admin=True)
+
+        print("Wahooo")
+        new_user_in_table = db.table(
+            "usuarios"
+        ).insert({
+            "id": str(user_id),
+            "rol":  new_user.rol,
+            "modalidad": new_user.modalidad,
+            "nombre": new_user.nombre,
+            "activo": new_user.activo
+        }).execute()
+        print("yippee")
+        return {
+            "message": "Usuario creado exitosamente",
+                "id": str(user_id),
+                "rol": new_user.rol,
+                "modalidad": new_user.modalidad
+                }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        print(f"Error creando usuario: {exc!r}")
+        raise HTTPException(503, "no se logro crear usuario") from exc
