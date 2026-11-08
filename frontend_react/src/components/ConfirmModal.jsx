@@ -9,8 +9,9 @@ import "./ConfirmModal.css";
 //   question     pregunta final
 //   confirmLabel texto del botón de confirmar
 //   tone         "warning" (por defecto) o "danger" para acciones que quitan algo
+//   hideCancel   solo un botón: un aviso que se cierra con "confirmLabel" (por ejemplo, un error)
 // onResult(true | false): el usuario confirmó o canceló (también con Escape o la ×).
-export default function ConfirmModal({ title, message, items = [], note, question, confirmLabel = "Confirmar", tone = "warning", onResult }) {
+export default function ConfirmModal({ title, message, items = [], note, question, confirmLabel = "Confirmar", tone = "warning", hideCancel = false, onResult }) {
   const dialogRef = useModalDialog();
   return (
     <dialog ref={dialogRef} className={`reservation-modal confirm-modal confirm-modal--${tone}`}
@@ -33,8 +34,8 @@ export default function ConfirmModal({ title, message, items = [], note, questio
       </div>
 
       <div className="reservation-modal-actions">
-        <button type="button" className="reservation-button reservation-button-secondary" onClick={() => onResult(false)} autoFocus>Cancelar</button>
-        <button type="button" className={`reservation-button${tone === "danger" ? " reservation-button-danger" : ""}`} onClick={() => onResult(true)}>
+        {!hideCancel && <button type="button" className="reservation-button reservation-button-secondary" onClick={() => onResult(false)} autoFocus>Cancelar</button>}
+        <button type="button" className={`reservation-button${tone === "danger" ? " reservation-button-danger" : ""}`} onClick={() => onResult(true)} autoFocus={hideCancel}>
           {confirmLabel}
         </button>
       </div>

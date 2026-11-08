@@ -8,7 +8,7 @@ ACTOR = '11111111-1111-1111-1111-111111111111'
 RESERVA = '22222222-2222-2222-2222-222222222222'
 SESION = dict(id='44444444-4444-4444-4444-444444444444', puestoId=7, fecha='2026-11-10',
               horaInicio='10:00', horaFin='12:00', estado='Programada')
-PAYLOAD = dict(id=RESERVA, clienteId='33333333-3333-3333-3333-333333333333',
+PAYLOAD = dict(id=RESERVA, clienteNombre='Camila Rojas', clienteRut='12.345.678-5',
                tatuadorId=ACTOR, precio=45000, sesiones=[SESION])
 
 
@@ -19,6 +19,11 @@ def session(**overrides):
 class ReservationsTests(unittest.TestCase):
     def setUp(self):
         self.api = TestClient(main.app)
+        # El registro de actividad se prueba aparte (tests/test_actividad.py).
+        for name in ('reservation_snapshot', 'log_event'):
+            patcher = patch(f'main.{name}', return_value=None)
+            patcher.start()
+            self.addCleanup(patcher.stop)
 
     def tearDown(self):
         main.app.dependency_overrides.clear()
@@ -40,45 +45,42 @@ class ReservationsTests(unittest.TestCase):
         self.assertEqual(name, 'okami_guardar_reserva')
         self.assertEqual(params['p_actor'], ACTOR)
         self.assertEqual(params['p_id'], RESERVA)
-        self.assertEqual(params['p_cliente'], PAYLOAD['clienteId'])
+        self.assertNotIn('p_cliente', params)
+        self.assertEqual(params['p_cliente_nombre'], 'Camila Rojas')
         self.assertEqual(params['p_sesiones'], [{'id': SESION['id'], 'puesto': 7, 'estado': 'Programada',
                                                  'inicio': '2026-11-10T10:00', 'fin': '2026-11-10T12:00'}])
         self.assertEqual(response.json(), {'id': RESERVA})
 
     @patch('main.reservation_rpc')
-    def test_create_can_send_a_new_basic_customer(self, rpc):
+    def test_customer_data_is_saved_in_the_reservation(self, rpc):
         self.sign_in()
         rpc.return_value = RESERVA
-        payload = {**PAYLOAD, 'clienteId': None, 'clienteNombre': 'Cliente nuevo', 'clienteRut': '12.345.678-5'}
-        response = self.api.post('/api/reservas', json=payload)
+        response = self.api.post('/api/reservas', json=PAYLOAD)
         self.assertEqual(response.status_code, 201)
         _, params = rpc.call_args.args
-        self.assertIsNone(params['p_cliente'])
-        self.assertEqual(params['p_cliente_nombre'], 'Cliente nuevo')
+        self.assertEqual(params['p_cliente_nombre'], 'Camila Rojas')
         self.assertEqual(params['p_cliente_rut'], '123456785')
-        self.assertNotIn('p_cliente_identificador', params)
+
+    @patch('main.reservation_rpc')
+    def test_editing_also_requires_customer_name_and_rut(self, rpc):
+        self.sign_in()
+        body = {key: value for key, value in PAYLOAD.items() if key not in ('id', 'clienteRut')}
+        self.assertEqual(self.api.patch(f'/api/reservas/{RESERVA}', json=body).status_code, 422)
+        rpc.assert_not_called()
 
     @patch('main.reservation_rpc')
     def test_new_customer_rut_accepts_lowercase_k(self, rpc):
         self.sign_in()
         rpc.return_value = RESERVA
-        payload = {**PAYLOAD, 'clienteId': None, 'clienteNombre': 'Cliente nuevo', 'clienteRut': '10.000.013-k'}
+        payload = {**PAYLOAD, 'clienteRut': '10.000.013-k'}
         response = self.api.post('/api/reservas', json=payload)
         self.assertEqual(response.status_code, 201)
         self.assertEqual(rpc.call_args.args[1]['p_cliente_rut'], '10000013K')
 
     @patch('main.reservation_rpc')
-    def test_existing_customer_does_not_send_a_rut(self, rpc):
-        self.sign_in()
-        rpc.return_value = RESERVA
-        response = self.api.post('/api/reservas', json={**PAYLOAD, 'clienteRut': 'basura'})
-        self.assertEqual(response.status_code, 201)
-        self.assertIsNone(rpc.call_args.args[1]['p_cliente_rut'])
-
-    @patch('main.reservation_rpc')
     def test_new_customer_rejects_an_invalid_rut_verifier(self, rpc):
         self.sign_in()
-        payload = {**PAYLOAD, 'clienteId': None, 'clienteNombre': 'Cliente nuevo', 'clienteRut': '12345678-K'}
+        payload = {**PAYLOAD, 'clienteRut': '12345678-K'}
         response = self.api.post('/api/reservas', json=payload)
         self.assertEqual(response.status_code, 422)
         self.assertIn('dígito verificador', response.json()['detail'])
@@ -87,20 +89,50 @@ class ReservationsTests(unittest.TestCase):
     @patch('main.reservation_rpc')
     def test_new_customer_requires_a_complete_rut(self, rpc):
         self.sign_in()
-        payload = {**PAYLOAD, 'clienteId': None, 'clienteNombre': 'Cliente nuevo'}
-        response = self.api.post('/api/reservas', json=payload)
+        response = self.api.post('/api/reservas', json={**PAYLOAD, 'clienteRut': ''})
         self.assertEqual(response.status_code, 422)
         self.assertIn('RUT', response.json()['detail'])
         rpc.assert_not_called()
 
     @patch('main.reservation_rpc')
-    def test_customer_search_requires_session_and_minimum_query(self, rpc):
-        self.assertEqual(self.api.get('/api/clientes?busqueda=ab').status_code, 401)
+    def test_new_customer_name_is_text_only(self, rpc):
         self.sign_in()
-        self.assertEqual(self.api.get('/api/clientes?busqueda=a').status_code, 422)
-        rpc.return_value = []
-        self.assertEqual(self.api.get('/api/clientes?busqueda=ana').status_code, 200)
-        self.assertEqual(rpc.call_args.args[0], 'okami_buscar_clientes')
+        rpc.return_value = RESERVA
+        for nombre in ('11585495k', 'Ana 2', '12.345.678-5', 'A', '@@@'):
+            with self.subTest(nombre=nombre):
+                payload = {**PAYLOAD, 'clienteNombre': nombre}
+                response = self.api.post('/api/reservas', json=payload)
+                self.assertEqual(response.status_code, 422)
+                self.assertIn('nombre', response.json()['detail'])
+        rpc.assert_not_called()
+        for nombre, guardado in (("  María José   O'Higgins-Pérez ", "María José O'Higgins-Pérez"), ('Ñuñoa Sr.', 'Ñuñoa Sr.')):
+            with self.subTest(nombre=nombre):
+                payload = {**PAYLOAD, 'clienteNombre': nombre}
+                self.assertEqual(self.api.post('/api/reservas', json=payload).status_code, 201)
+                self.assertEqual(rpc.call_args.args[1]['p_cliente_nombre'], guardado)
+
+    def test_there_is_no_customer_search(self):
+        self.sign_in()
+        self.assertEqual(self.api.get('/api/clientes?busqueda=ana').status_code, 404)
+
+    @patch('main.reservation_rpc')
+    def test_delete_archives_and_restore_brings_back(self, rpc):
+        self.sign_in()
+        rpc.return_value = RESERVA
+        self.assertEqual(self.api.delete(f'/api/reservas/{RESERVA}').status_code, 200)
+        self.assertEqual(rpc.call_args.args[1]['p_operacion'], 'borrar')
+        self.assertEqual(self.api.post(f'/api/reservas/{RESERVA}/restaurar').status_code, 200)
+        self.assertEqual(rpc.call_args.args, ('okami_guardar_reserva', {'p_actor': ACTOR, 'p_operacion': 'restaurar', 'p_id': RESERVA}))
+
+    @patch('main.reservation_rpc')
+    def test_session_status_changes_only_that_session(self, rpc):
+        self.assertEqual(self.api.patch(f"/api/reservas/{RESERVA}/sesiones/{SESION['id']}", json={'estado': 'Completada'}).status_code, 401)
+        self.sign_in()
+        response = self.api.patch(f"/api/reservas/{RESERVA}/sesiones/{SESION['id']}", json={'estado': 'Completada'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(rpc.call_args.args, ('okami_estado_sesion', {'p_actor': ACTOR, 'p_reserva': RESERVA,
+                                                                      'p_sesion': SESION['id'], 'p_estado': 'Completada'}))
+        self.assertEqual(self.api.patch(f"/api/reservas/{RESERVA}/sesiones/{SESION['id']}", json={'estado': 'Confirmada'}).status_code, 422)
 
     @patch('main.reservation_rpc')
     def test_reversed_schedule_never_reaches_database(self, rpc):

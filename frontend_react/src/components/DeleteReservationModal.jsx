@@ -32,8 +32,11 @@ export default function DeleteReservationModal({ reserva, onConfirm, onClose }) 
       </div>
       <p id="delete-reservation-description" className="reservation-modal-description">
         ¿Quieres borrar la reserva de <strong>{reserva.cliente ?? "este cliente"}</strong> con {reserva.tatuador}
-        {total > 0 && <> y sus <strong>{total} {total === 1 ? "sesión" : "sesiones"}</strong> ({primera === ultima ? `el ${formatDate(primera)}` : `del ${formatDate(primera)} al ${formatDate(ultima)}`})</>}?
-        {" "}Esta acción no se puede deshacer. Para quitar solo una sesión, edita la reserva.
+        {total > 0 && <> y {total === 1 ? <>su <strong>sesión</strong></> : <>sus <strong>{total} sesiones</strong></>} ({primera === ultima ? `el ${formatDate(primera)}` : `del ${formatDate(primera)} al ${formatDate(ultima)}`})</>}?
+      </p>
+      <p className="reservation-modal-description">
+        La reserva pasa al <strong>Historial</strong>: deja de ocupar el puesto y la agenda, pero se conserva con sus datos
+        y se puede restaurar. Si tenía sesiones completadas, siguen contando en las ganancias. Para quitar solo una sesión, edita la reserva.
       </p>
       {error && <p className="reservation-form-error" role="alert">{error}</p>}
       <div className="reservation-modal-actions">

@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import useModalDialog from "../hooks/useModalDialog";
 import { reservationStatuses } from "../data/reservationStatuses";
 import { isFutureReservationStart, todayInSantiago } from "../utils/calendar";
 import { artistConflicts, overlappingWithinReservation, puestoConflicts } from "../utils/sessions";
-import { authRequest } from "../services/authService";
 import { formatRut, normalizeRut, rutValidationError, typedRut } from "../utils/rut";
-import { puestoBlockReason, titularPuesto } from "../utils/puestos";
+import { puestoBlockReason, puestoStateText, titularPuesto } from "../utils/puestos";
+import { cleanClientName, clientNameError } from "../utils/clientName";
 import { formatPrice } from "../utils/format";
 import "./ReservationModal.css";
 
@@ -19,11 +19,6 @@ function durationLabel(inicio, fin) {
   return [horas && `${horas} h`, minutos && `${minutos} min`].filter(Boolean).join(" ");
 }
 
-// Iniciales para el avatar del cliente ("Camila Rojas" → "CR").
-function initials(nombre) {
-  return String(nombre ?? "").trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? "").join("");
-}
-
 function newSession(fecha, puestoId = "") {
   return { id: crypto.randomUUID(), fecha, horaInicio: "", horaFin: "", puestoId, estado: "Programada" };
 }
@@ -35,11 +30,9 @@ export default function ReservationModal({ puestos, catalogos, user, reserva, se
   const [requestId] = useState(() => reserva?.id ?? crypto.randomUUID());
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [clienteId, setClienteId] = useState(reserva?.clienteId ?? "");
+  // El cliente no tiene ficha propia: su nombre y RUT se guardan en la reserva.
   const [clienteNombre, setClienteNombre] = useState(reserva?.cliente ?? "");
-  const [clienteRut, setClienteRut] = useState("");
-  const [clientMatches, setClientMatches] = useState([]);
-  const [searchingClients, setSearchingClients] = useState(false);
+  const [clienteRut, setClienteRut] = useState(formatRut(reserva?.clienteRut ?? ""));
   const [tatuadorId, setTatuadorId] = useState(user.role === "tatuador" ? user.id : reserva?.tatuadorId ?? "");
   const [precio, setPrecio] = useState(reserva?.precio ?? "");
   // Puesto del que el tatuador es titular: se propone por defecto en las sesiones nuevas.
@@ -49,26 +42,6 @@ export default function ReservationModal({ puestos, catalogos, user, reserva, se
     : [newSession(initialDate >= today ? initialDate : today, initialPuesto || (homePuesto?.disponible ? homePuesto.id : ""))]);
   const originals = new Map((reserva?.sesiones ?? []).map((item) => [item.id, item]));
   const crossing = overlappingWithinReservation(sessions);
-
-  useEffect(() => {
-    const query = clienteNombre.trim();
-    if (clienteId || query.length < 2) {
-      return undefined;
-    }
-    let active = true;
-    const timer = setTimeout(async () => {
-      setSearchingClients(true);
-      try {
-        const rows = await authRequest(`/api/clientes?busqueda=${encodeURIComponent(query)}`);
-        if (active) setClientMatches(rows);
-      } catch {
-        if (active) setClientMatches([]);
-      } finally {
-        if (active) setSearchingClients(false);
-      }
-    }, 250);
-    return () => { active = false; clearTimeout(timer); };
-  }, [clienteNombre, clienteId]);
 
   function updateSession(index, patch) {
     setSessions((current) => current.map((item, position) => position === index ? { ...item, ...patch } : item));
@@ -113,7 +86,7 @@ export default function ReservationModal({ puestos, catalogos, user, reserva, se
     const blocked = sesion.estado !== "Cancelada" ? puestoBlockReason(puesto, tatuadorId) : "";
     const artistChanged = Boolean(original) && reserva.tatuadorId !== tatuadorId;
     if (blocked === "Solo titulares" && (puestoChanged || artistChanged)) return `${puesto.nombre} es un puesto ${puesto.tipo} y solo lo usan sus titulares. Elige tu puesto o uno rotativo.`;
-    if (blocked && blocked !== "Solo titulares" && puestoChanged) return `${puesto.nombre} está en ${puesto.estado.toLowerCase()}. Elige otro puesto.`;
+    if (blocked && blocked !== "Solo titulares" && puestoChanged) return `${puesto.nombre} está ${puestoStateText(puesto.estado)} y no acepta sesiones nuevas. Elige otro puesto.`;
     if (crossing.has(index)) return "Se cruza con otra sesión de esta reserva.";
     const [taken] = puestoConflicts(sesiones, sesion, reserva?.id);
     if (taken) return `${puesto.nombre} está ocupado de ${taken.horaInicio} a ${taken.horaFin} (${taken.tatuador}).`;
@@ -129,13 +102,18 @@ export default function ReservationModal({ puestos, catalogos, user, reserva, se
     event.preventDefault();
     if (saving) return;
     const price = Number(precio);
-    if ((!clienteId && !clienteNombre.trim()) || !tatuadorId || precio === "" || !Number.isSafeInteger(price) || price < 0) {
-      setError("Ingresa o selecciona un cliente, selecciona un tatuador e ingresa un precio entero igual o mayor a cero.");
+    const nameError = clientNameError(clienteNombre);
+    if (nameError) {
+      setError(nameError);
       return;
     }
-    const rutError = clienteId ? "" : rutValidationError(clienteRut);
+    const rutError = rutValidationError(clienteRut);
     if (rutError) {
       setError(rutError);
+      return;
+    }
+    if (!tatuadorId || precio === "" || !Number.isSafeInteger(price) || price < 0) {
+      setError("Selecciona un tatuador e ingresa un precio entero igual o mayor a cero.");
       return;
     }
     if (sessions.length === 0) {
@@ -154,9 +132,8 @@ export default function ReservationModal({ puestos, catalogos, user, reserva, se
     try {
       await onSave({
         id: requestId,
-        clienteId: clienteId || undefined,
-        clienteNombre: clienteId ? undefined : clienteNombre.trim(),
-        clienteRut: clienteId ? undefined : normalizeRut(clienteRut) || undefined,
+        clienteNombre: cleanClientName(clienteNombre),
+        clienteRut: normalizeRut(clienteRut),
         tatuadorId,
         precio: price,
         sesiones: sessions,
@@ -169,25 +146,11 @@ export default function ReservationModal({ puestos, catalogos, user, reserva, se
     }
   }
 
-  const isNewClient = !clienteId && clienteNombre.trim().length >= 2;
-  const rutStatus = isNewClient && clienteRut.trim() ? rutValidationError(clienteRut) : null;
+  // Avisos en línea: solo cuando ya se escribió algo en el campo.
+  const rutStatus = clienteRut.trim() ? rutValidationError(clienteRut) : null;
+  const nameStatus = clienteNombre.trim() ? clientNameError(clienteNombre) : "";
   const priceNumber = Number(precio);
   const hasPrice = precio !== "" && Number.isSafeInteger(priceNumber) && priceNumber >= 0;
-
-  function selectClient(item) {
-    setClienteId(item.id);
-    setClienteNombre(item.nombre);
-    setClienteRut(item.rut ?? "");
-    setClientMatches([]);
-    setError("");
-  }
-
-  function changeClient() {
-    setClienteId("");
-    setClienteNombre("");
-    setClienteRut("");
-    setClientMatches([]);
-  }
 
   return (
     <dialog ref={dialogRef} className="reservation-modal reservation-editor" aria-labelledby="reservation-modal-title" onCancel={(event) => { if (saving) event.preventDefault(); else onClose(); }} aria-busy={saving}>
@@ -206,47 +169,19 @@ export default function ReservationModal({ puestos, catalogos, user, reserva, se
           <section className="editor-step" aria-labelledby="step-cliente">
             <h3 id="step-cliente" className="editor-step-title"><span className="editor-step-number" aria-hidden="true">1</span>Cliente</h3>
 
-            {clienteId ? (
-              <div className="client-chip">
-                <span className="client-avatar" aria-hidden="true">{initials(clienteNombre)}</span>
-                <div>
-                  <strong>{clienteNombre}</strong>
-                  {clienteRut && <span>RUT {formatRut(clienteRut)}</span>}
-                </div>
-                <button type="button" className="reservation-button reservation-button-secondary" onClick={changeClient}>Cambiar</button>
-              </div>
-            ) : (
-              <>
-                <label>Buscar o registrar cliente
-                  <input value={clienteNombre} onChange={(event) => { setClienteNombre(event.target.value); setClienteId(""); setClienteRut(""); setClientMatches([]); setError(""); }} placeholder="Escribe nombre o RUT" required autoFocus={!reserva} autoComplete="off" />
-                </label>
-                {searchingClients && <p className="editor-hint" role="status">Buscando clientes…</p>}
-                {clientMatches.length > 0 && (
-                  <div className="client-matches" role="listbox" aria-label="Clientes encontrados">
-                    <p className="editor-hint">Clientes encontrados: selecciona uno para reutilizarlo</p>
-                    {clientMatches.map((item) => (
-                      <button type="button" role="option" aria-selected="false" key={item.id} onClick={() => selectClient(item)}>
-                        <span className="client-avatar" aria-hidden="true">{initials(item.nombre)}</span>
-                        <span className="client-match-name">{item.nombre}</span>
-                        {item.rut && <span className="client-match-rut">{formatRut(item.rut)}</span>}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {isNewClient && (
-                  <div className="new-client">
-                    <p className="new-client-title">Cliente nuevo</p>
-                    <p className="editor-hint">Si no eliges una coincidencia, se registrará a <strong>{clienteNombre.trim()}</strong> con este RUT.</p>
-                    <label>RUT del cliente
-                      <input value={clienteRut} onChange={(event) => { setClienteRut(typedRut(event.target.value)); setError(""); }} onBlur={() => setClienteRut(formatRut(clienteRut))} maxLength={11} placeholder="11222333-K" aria-describedby="rut-ayuda" aria-invalid={Boolean(rutStatus)} autoComplete="off" required className={rutStatus === "" ? "input-valid" : rutStatus ? "input-invalid" : ""} />
-                      <small id="rut-ayuda" className={`editor-hint${rutStatus === "" ? " hint-ok" : rutStatus ? " hint-error" : ""}`}>
-                        {rutStatus === "" ? "✓ RUT válido" : rutStatus || "Sin puntos y con guion antes del dígito verificador."}
-                      </small>
-                    </label>
-                  </div>
-                )}
-              </>
-            )}
+            <p className="editor-hint">El nombre y el RUT quedan guardados en esta reserva y sirven para encontrarla después.</p>
+            <div className="reservation-form-row">
+              <label>Nombre del cliente
+                <input value={clienteNombre} onChange={(event) => { setClienteNombre(event.target.value); setError(""); }} onBlur={() => setClienteNombre(cleanClientName(clienteNombre))} maxLength={120} placeholder="Camila Rojas" aria-invalid={Boolean(nameStatus)} aria-describedby="nombre-ayuda" required autoFocus={!reserva} autoComplete="off" className={nameStatus ? "input-invalid" : ""} />
+                <small id="nombre-ayuda" className={`editor-hint${nameStatus ? " hint-error" : ""}`}>{nameStatus || "Solo letras: nombre y apellido."}</small>
+              </label>
+              <label>RUT del cliente
+                <input value={clienteRut} onChange={(event) => { setClienteRut(typedRut(event.target.value)); setError(""); }} onBlur={() => setClienteRut(formatRut(clienteRut))} maxLength={11} placeholder="11222333-K" aria-describedby="rut-ayuda" aria-invalid={Boolean(rutStatus)} autoComplete="off" required className={rutStatus === "" ? "input-valid" : rutStatus ? "input-invalid" : ""} />
+                <small id="rut-ayuda" className={`editor-hint${rutStatus === "" ? " hint-ok" : rutStatus ? " hint-error" : ""}`}>
+                  {rutStatus === "" ? "✓ RUT válido" : rutStatus || "Sin puntos y con guion antes del dígito verificador."}
+                </small>
+              </label>
+            </div>
           </section>
 
           {/* Paso 2: datos del tatuaje */}

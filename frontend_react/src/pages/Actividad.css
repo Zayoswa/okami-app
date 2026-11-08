@@ -1,0 +1,246 @@
+/* =========================
+   ACTIVIDAD (solo admin)
+   Filtros y una línea de tiempo agrupada por día.
+========================= */
+
+.actividad-page {
+  width: 100%;
+  max-width: 980px;
+}
+
+.actividad-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.actividad-filters label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.actividad-filters input,
+.actividad-filters select {
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.actividad-filter-search {
+  flex: 1 1 220px;
+}
+
+.actividad-filters .reservation-button {
+  min-height: 40px;
+  padding: 8px 14px;
+}
+
+.actividad-alert {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  font-size: 13px;
+}
+
+/* ---------- Libro de registro ----------
+   Sin tarjetas: cada acción es una fila del libro, separada por una línea fina.
+   Todo en la letra de la app (Inter); la hora y los montos con números de ancho fijo. */
+
+.actividad-page {
+  --act-font: "Inter", sans-serif;
+}
+
+.actividad-day + .actividad-day {
+  margin-top: 28px;
+}
+
+.actividad-day-title {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 0;
+  padding: 12px 18px 8px;
+  border: 1px solid var(--color-border);
+  border-bottom: 1.5px solid var(--color-text);
+  border-radius: 6px 6px 0 0;
+  background: var(--color-panel);
+  font-family: var(--act-font);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.actividad-list {
+  margin: 0;
+  padding: 0 18px;
+  list-style: none;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-panel);
+  border-top: 0;
+  border-radius: 0 0 6px 6px;
+}
+
+.actividad-item {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.actividad-item:last-child {
+  border-bottom: 0;
+}
+
+.actividad-time {
+  padding-top: 3px;
+  font-family: var(--act-font);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted);
+}
+
+.actividad-body {
+  min-width: 0;
+}
+
+.actividad-meta {
+  margin-bottom: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.actividad-actor {
+  color: var(--color-text-soft);
+}
+
+.actividad-role {
+  font-weight: 400;
+}
+
+/* Los arriendos, el valor del estudio: contexto en dorado */
+.actividad-item--arriendo .actividad-category {
+  color: var(--color-gold-text);
+}
+
+/* Lo que se borra o cancela: el contexto en rojo, sin cambiar el fondo (gana sobre el dorado) */
+.actividad-item--danger .actividad-category {
+  color: var(--color-danger);
+}
+
+.actividad-text {
+  font-family: var(--act-font);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Palabras clave: color sobrio, sin cajas ---------- */
+
+.kw--ok {
+  color: var(--color-success);
+}
+
+.kw--danger {
+  color: var(--color-danger);
+}
+
+.kw--info {
+  color: var(--color-pending);
+}
+
+.kw--warn {
+  color: var(--color-gold-text);
+}
+
+.kw--ok,
+.kw--danger,
+.kw--info,
+.kw--warn {
+  font-weight: 600;
+}
+
+.kw--money {
+  font-family: var(--act-font);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+.kw--arrow {
+  padding: 0 4px;
+  font-weight: 600;
+  color: var(--color-text-soft);
+}
+
+.actividad-toggle {
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-gold-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.actividad-toggle:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+}
+
+.actividad-detail {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 2px;
+  padding: 2px 0 2px 14px;
+  border-left: 1.5px solid var(--color-border);
+  list-style: none;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-soft);
+}
+
+.actividad-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 18px;
+}
+
+@media (max-width: 640px) {
+  .actividad-filters label {
+    flex: 1 1 calc(50% - 10px);
+  }
+
+  .actividad-filter-search {
+    flex-basis: 100%;
+  }
+
+  .actividad-item {
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .actividad-text {
+    font-size: 14px;
+  }
+}

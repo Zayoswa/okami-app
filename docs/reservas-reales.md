@@ -52,3 +52,69 @@ Ejecuta [010_reglas_uso_puestos.sql](../backend-fastapi/migrations/010_reglas_us
 
 - **Full y Compartido** solo aceptan sesiones de sus titulares. Para prestar un puesto, el admin lo cambia a **Rotativo**, que está abierto a todos los tatuadores, titulares incluidos.
 - Igual que con mantenimiento, las sesiones ya agendadas se conservan y se pueden completar o cancelar. Si una reserva pasa a otro tatuador, sus sesiones en puestos Full o Compartido vuelven a validarse.
+
+## Estados de los puestos
+
+Ejecuta [011_estados_puestos.sql](../backend-fastapi/migrations/011_estados_puestos.sql) después de 010. No borra datos.
+
+- Los puestos tienen tres estados: **Habilitado**, **Deshabilitado** y **Mantenimiento**. La migración corrige el nombre antiguo "Desahabilitado" sin cambiar su ID.
+- Solo un puesto Habilitado acepta sesiones nuevas. En los otros dos, las sesiones ya agendadas se conservan y se pueden completar o cancelar.
+- El aviso al agendar nombra el estado real del puesto: "Puesto 4 está deshabilitado…" o "Puesto 4 está en mantenimiento…".
+
+## Cliente en la reserva, historial y cierre de sesiones
+
+Ejecuta [012_cliente_en_reserva_e_historial.sql](../backend-fastapi/migrations/012_cliente_en_reserva_e_historial.sql) después de 011. No borra datos.
+
+- **Cliente dentro de la reserva:** no hay una ficha ni un buscador de clientes. El formulario pide el nombre (solo letras) y el RUT, y ambos se guardan en la reserva (`reservas.cliente_nombre` y `reservas.cliente_rut`). La migración copia esos datos desde la tabla `cliente`, que queda intacta pero la app ya no usa.
+- **Buscar reservas por cliente:** el buscador de Reservas acepta el nombre del cliente o del tatuador, o el RUT, con o sin puntos y guion (por ejemplo `12.345.678-5`, `12345678` o `678-5`).
+- **Historial:** "Borrar" ya no elimina. La reserva pasa a la pestaña **Historial** de Reservas: deja de ocupar el puesto y la agenda del tatuador, y no aparece en el Calendario ni en Espacios. Solo la ven el admin y su tatuador. **Restaurar** la devuelve a la agenda, salvo que una de sus sesiones choque con otra reserva.
+- **Ganancias:** las sesiones completadas de una reserva borrada siguen contando en las ganancias y el ranking del Dashboard. Sus sesiones programadas ya no cuentan como "por cobrar".
+- **Cambiar el estado de una sesión** usa `PATCH /api/reservas/{id}/sesiones/{sesion}` (función `okami_estado_sesion`), sin reenviar la reserva completa. Así también se pueden cerrar sesiones de un tatuador desactivado. Volver a activar una sesión cancelada revisa que el puesto y el tatuador sigan libres.
+- **Sesiones por cerrar:** en el Dashboard, cada sesión que ya terminó y sigue Programada tiene botones **Completada** y **Cancelada**. En el Calendario, el detalle de una sesión también permite cambiar su estado.
+
+## Arriendos
+
+Ejecuta [013_arriendos.sql](../backend-fastapi/migrations/013_arriendos.sql) después de 012. No borra datos. El arriendo es lo que cada tatuador paga al estudio según su **modalidad** (`usuarios.modalidad`).
+
+| Modalidad | Cobro |
+|---|---|
+| Full | $220.000 al mes |
+| Compartido | $120.000 al mes, cada titular |
+| Rotativo | $12.000 por turno; mínimo $60.000 al mes, a principio de mes |
+| Rotativo light | $12.000 por turno; mínimo $36.000 al mes |
+| Guest | $15.000 por día; con 5 o más días en el mes, $12.000 cada día |
+
+- **Turno** es una sesión no cancelada del mes, y **día** es una fecha con al menos una sesión. De una reserva borrada solo cuentan las sesiones Completadas. El mínimo del Rotativo cubre sus primeros turnos: con 7 turnos paga $84.000 ($60.000 al inicio y $24.000 después); con 3, solo $60.000.
+- **Tablas:** `modalidad_tarifas` guarda el precio de cada modalidad desde un mes (un cambio de precio no altera los meses anteriores), `modalidad_historial` qué modalidad tuvo cada tatuador cada mes (se llena sola al cambiarla) y `pagos_arriendo` los pagos que registra el admin.
+- **Tatuadores:** el admin asigna la modalidad de cada uno, y el cambio vale desde el mes actual.
+- **Espacios:** un puesto Full solo acepta titulares con modalidad Full, y uno Compartido, titulares Compartido. Rotativo, Rotativo light y Guest agendan en puestos rotativos. Un titular no puede cambiar de modalidad sin dejar antes su puesto.
+- **Arriendos** (menú, solo admin): por mes, lo que debe cada tatuador, cómo se calculó, lo pagado, el saldo y su estado (Pagado, Pago parcial, Pendiente, Falta el mínimo). Desde ahí se registran y borran pagos.
+- **Dashboard:** arriba muestra el arriendo del mes (total, cobrado y pendiente) y debajo las ventas de los tatuadores.
+- El cálculo está en [arriendos.py](../backend-fastapi/arriendos.py), con sus tests en `tests/test_arriendos.py`.
+
+## Dashboard del admin y Mi panel
+
+- **Dashboard (admin), por mes:** lo principal es el arriendo.
+  - Indicadores: arriendo cobrado frente al estimado, total estimado y pendiente (con botón a Arriendos).
+  - Gráficos: arriendo por mes (últimos 6 meses, cobrado sobre estimado), cobro por tatuador, arriendo por modalidad y uso de los puestos.
+  - También muestra sesiones por cerrar y próximas sesiones; al final, las ventas de los tatuadores como referencia.
+  - Usa `GET /api/arriendos/historial?hasta=YYYY-MM&meses=6`.
+- **Mi panel (tatuador), por mes:**
+  - Indicadores: sus ganancias (con variación frente al mes anterior), lo que tiene por realizar, sus sesiones y su arriendo del mes.
+  - Gráficos y listas: sus ganancias por mes, sus reservas por estado, sus sesiones por cerrar (con botones) y sus próximas sesiones.
+  - Su arriendo sale de `GET /api/arriendos/mio?mes=YYYY-MM`: solo el suyo y sin las notas de los pagos.
+
+## Registro de actividad
+
+Ejecuta [014_registro_actividad.sql](../backend-fastapi/migrations/014_registro_actividad.sql) después de 013. No borra datos.
+
+- **Qué se registra:** cada cambio hecho desde la app, con quién lo hizo, cuándo, un resumen legible y el detalle.
+  - Reservas: crear, editar (con la lista de cambios), borrar y restaurar.
+  - Sesiones: cada cambio de estado (Programada, Completada, Cancelada).
+  - Espacios: estado, tipo y titulares de los puestos.
+  - Tatuadores: registro, invitación, activar o desactivar el acceso y modalidad.
+  - Arriendos: pagos registrados y borrados.
+- **No se puede alterar:** el backend solo puede leer y agregar registros (`registro_actividad`); no tiene permiso para editarlos ni borrarlos.
+- **Nunca bloquea una acción:** si guardar el registro falla, el cambio del usuario se mantiene y el error queda en el log del servidor.
+- **Módulo Actividad** (solo admin): línea de tiempo por día, con filtros por tipo, persona, fechas y texto, y "Cargar más". Usa `GET /api/actividad`.
+- Los resúmenes se arman en [actividad.py](../backend-fastapi/actividad.py), con tests en `tests/test_actividad.py`.

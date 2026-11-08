@@ -117,6 +117,19 @@
   color: var(--color-muted);
 }
 
+/* Botones de estado: en su propia fila, debajo de los datos de la sesión */
+.details-sessions .session-status-buttons {
+  grid-column: 1 / -1;
+}
+
+.details-session .session-status-buttons {
+  margin-top: 10px;
+}
+
+.session-status-buttons .status-menu-options {
+  flex-wrap: wrap;
+}
+
 @media (max-width: 480px) {
   .details-grid {
     grid-template-columns: 1fr;

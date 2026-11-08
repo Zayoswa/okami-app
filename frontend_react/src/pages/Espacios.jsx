@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { authRequest } from "../services/authService";
 import { reservationsRepository } from "../services/reservationsRepository";
 import LoadingScreen from "../components/LoadingScreen";
-import { flattenSessions } from "../utils/sessions";
+import { flattenSessions, isArchived } from "../utils/sessions";
 import { todayInSantiago, timeInSantiago } from "../utils/calendar";
 import { PUESTO_TIPOS, maxTitulares, puestoNumber, puestoOccupancy, upcomingSessions } from "../utils/puestos";
 import { formatShortWeekdayDate } from "../utils/format";
 import PuestoTipoBadge from "../components/PuestoTipoBadge";
 import useConfirm from "../hooks/useConfirm";
+import useAutoRefresh from "../hooks/useAutoRefresh";
 import "./Espacios.css";
 
 const isHabilitado = (estado) => String(estado ?? "").trim().toLowerCase() === "habilitado";
@@ -46,7 +47,8 @@ export default function Espacios({ user }) {
     setTatuadores(catalogs.tatuadores ?? []);
     // Si fallan las reservas, los espacios se siguen mostrando; solo falta la ocupación.
     try {
-      setSesiones(flattenSessions(await reservationsRepository.list(user)));
+      // Las reservas del historial (borradas) no ocupan puestos.
+      setSesiones(flattenSessions((await reservationsRepository.list(user)).filter((reserva) => !isArchived(reserva))));
       setOccupancyError("");
     } catch {
       setOccupancyError("No se pudo cargar la ocupación actual de los espacios.");
@@ -57,6 +59,9 @@ export default function Espacios({ user }) {
     Promise.resolve().then(load).catch((cause) => setError(cause.message)).finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Recarga en segundo plano cada minuto y al volver a la pestaña (pausada mientras se guarda un cambio).
+  useAutoRefresh(load, { enabled: !loading && !savingId });
 
   // Actualiza "ahora" cada minuto para que la ocupación no quede desfasada.
   useEffect(() => {
@@ -247,13 +252,17 @@ export default function Espacios({ user }) {
                           ))}
                         </ul>
                       ) : <p className="espacio-titulares-empty">Sin titular asignado.</p>}
-                      {cupo > 0 && (
-                        <select value="" disabled={Boolean(savingId) || !libres.length} onChange={(event) => addTitular(puesto, event.target.value)}
-                          aria-label={`Agregar titular a ${puesto.nombre}`}>
-                          <option value="">{libres.length ? "+ Agregar titular" : "No hay tatuadores sin puesto"}</option>
-                          {libres.map((tatuador) => <option key={tatuador.id} value={tatuador.id}>{tatuador.nombre}</option>)}
-                        </select>
-                      )}
+                      {cupo > 0 && (() => {
+                        // Solo tatuadores sin puesto cuya modalidad coincide con el tipo (Full o Compartido).
+                        const candidatos = libres.filter((tatuador) => (tatuador.modalidad ?? "").toLowerCase() === puesto.tipo.toLowerCase());
+                        return (
+                          <select value="" disabled={Boolean(savingId) || !candidatos.length} onChange={(event) => addTitular(puesto, event.target.value)}
+                            aria-label={`Agregar titular a ${puesto.nombre}`}>
+                            <option value="">{candidatos.length ? "+ Agregar titular" : `No hay tatuadores ${puesto.tipo} sin puesto`}</option>
+                            {candidatos.map((tatuador) => <option key={tatuador.id} value={tatuador.id}>{tatuador.nombre}</option>)}
+                          </select>
+                        );
+                      })()}
                     </>
                   )}
                 </div>

@@ -11,3 +11,8 @@
 .artists-dialog { border: 0; border-radius: 12px; padding: 24px; width: min(440px, calc(100vw - 40px)); box-sizing: border-box; }
 .artists-dialog::backdrop { background: #0006; }
 .artists-dialog button { margin: 8px; }
+.artists-actions { display: flex; align-items: flex-end; gap: 12px; }
+.artists-page .artists-modality { display: grid; gap: 4px; font-size: 12px; color: #666; }
+.artists-page .artists-modality select { width: auto; min-width: 160px; padding: 8px; }
+@media (max-width: 560px) { .artists-page li { flex-direction: column; align-items: stretch; } .artists-actions { justify-content: space-between; } }
+.artists-page label small { color: #666; font-size: 12px; }

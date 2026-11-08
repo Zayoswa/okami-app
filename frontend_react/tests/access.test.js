@@ -4,8 +4,9 @@ import { ownsReservation, canManageReservation, homeForUser } from "../src/utils
 
 test("el tatuador accede a sus reservas y el admin administra todas", () => {
   const artist = { id: 2, name: "Bruno Toro", role: "tatuador" };
-  assert.equal(homeForUser(artist), "/mis-reservas");
-  assert.equal(homeForUser({ role: "admin" }), "/reservas");
+  assert.equal(homeForUser(artist), "/inicio");
+  assert.equal(homeForUser({ role: "admin" }), "/inicio");
+  assert.equal(homeForUser(null), "/login");
   assert.ok(ownsReservation(artist, { tatuador: "Bruno Toro" }));
   assert.ok(ownsReservation(artist, { tatuadorId: 2, tatuador: "Otro nombre" }));
   assert.equal(canManageReservation(artist, { tatuador: "Antonia Muñoz" }), false);

@@ -393,35 +393,64 @@ El número de fondo viene de .puesto-numero-fondo (index.css).
   color: var(--color-danger);
 }
 
-/* Sesiones de una reserva: tarjeta */
-.reserva-sesiones {
-  display: grid;
+/* =========================
+PESTAÑAS: AGENDA / HISTORIAL
+========================= */
+
+.reservas-tabs {
+  display: flex;
   gap: 4px;
-  margin: 8px 0 0;
-  padding: 8px 0 0;
-  border-top: 1px solid var(--color-border-soft);
-  list-style: none;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--color-border);
 }
 
-.reserva-sesiones li {
-  display: grid;
-  grid-template-columns: 70px minmax(0, 1fr) 90px auto;
-  gap: 10px;
+.reservas-tab {
+  display: inline-flex;
   align-items: center;
-  color: var(--color-text-soft);
-  padding: 4px 8px;
-  border-radius: 6px;
+  gap: 8px;
+  margin-bottom: -1px;
+  padding: 10px 16px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.reservas-tab:hover {
+  color: var(--color-text);
+}
+
+.reservas-tab:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+}
+
+.reservas-tab-active {
+  border-bottom-color: var(--color-gold);
+  color: var(--color-text);
+}
+
+.reservas-tab-count {
+  min-width: 22px;
+  padding: 1px 7px;
+  border-radius: 999px;
   background: var(--color-surface-muted);
   font-size: 12px;
+  text-align: center;
 }
 
-.reserva-sesion-numero {
-  font-weight: 700;
+.reservas-historial-note {
+  margin-bottom: 16px;
+  font-size: 13px;
   color: var(--color-muted);
 }
 
-@media (max-width: 640px) {
-  .reserva-sesiones li {
-    grid-template-columns: 1fr 1fr;
-  }
+/* Reserva del historial: atenuada y con borde punteado */
+.reserva-card.reserva-card-archivada {
+  border-left-style: dashed;
+  background: var(--color-surface-muted);
 }

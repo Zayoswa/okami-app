@@ -12,6 +12,7 @@
   --color-bg: #e9e4da;
   --color-surface: #ffffff;
   --color-surface-muted: #f6f3ed;
+  --color-panel: #f2ede4;     /* paneles del Dashboard, Mi panel, Arriendos y Actividad: papel, no blanco */
   --color-highlight: #fffaf0; /* día seleccionado en el calendario */
 
   /* Bordes */

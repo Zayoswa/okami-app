@@ -1,6 +1,6 @@
+// Todos entran por Inicio, que tiene un botón para cada módulo.
 export function homeForUser(user) {
-  if (user?.role === "admin") return "/reservas";
-  if (user?.role === "tatuador") return "/mis-reservas";
+  if (user?.role === "admin" || user?.role === "tatuador") return "/inicio";
   return "/login";
 }
 

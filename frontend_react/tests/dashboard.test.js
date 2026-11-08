@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  averageTicket, hoursByPuesto, percentChange, revenueByWeek, sessionShare, sessionsToClose,
+  artistRanking, averageTicket, hoursByPuesto, percentChange, revenueByWeek, sessionShare, sessionsToClose,
   statusCounts, upcomingSessions, weekStart, weekSummary,
 } from "../src/utils/dashboard.js";
 import { flattenSessions } from "../src/utils/sessions.js";
@@ -16,6 +16,16 @@ const rows = [
   reserva("c", 80000, [sesion("c1", "2026-10-28", "Completada")]),
   reserva("d", 50000, [sesion("d1", "2026-11-07", "Cancelada")]),
 ];
+
+test("de una reserva borrada solo cuentan sus sesiones completadas", () => {
+  const borrada = { ...reserva("e", 200000, [sesion("e1", "2026-11-03", "Completada"), sesion("e2", "2026-11-05", "Programada")]), archivadaEn: "2026-11-06T10:00:00Z" };
+  const semana = weekSummary([...rows, borrada], "2026-11-02");
+  assert.equal(semana.ganancias, 300000, "suma los $100.000 de la sesión completada");
+  assert.equal(semana.porCobrar, 100000, "su sesión programada ya no se cobrará");
+  assert.equal(semana.programadas, 1);
+  const [ana] = artistRanking([...rows, borrada], "2026-10-26", "2026-11-08", { desde: "2026-11-02", hasta: "2026-11-08" });
+  assert.equal(ana.ganancias, 380000);
+});
 
 test("la semana empieza el lunes", () => {
   assert.equal(weekStart("2026-11-08"), "2026-11-02");
@@ -61,4 +71,49 @@ test("ticket promedio, sesiones por cerrar, próximas y variación", () => {
   assert.deepEqual(upcomingSessions(sesiones, "2026-11-05", "11:00", 30).map(({ id }) => id), ["a2", "a3"]);
   assert.equal(percentChange(150, 100), 50);
   assert.equal(percentChange(100, 0), null);
+});
+
+test("el ranking de tatuadores ordena por ganancias de sesiones completadas", () => {
+  const otros = [
+    ...rows,
+    { id: "e", precio: 400000, tatuador: "Bruno", tatuadorId: "t2", cliente: "X", sesiones: [sesion("e1", "2026-11-04", "Completada"), sesion("e2", "2026-10-29", "Completada")] },
+  ];
+  const ranking = artistRanking(otros, "2026-10-26", "2026-11-08", { desde: "2026-11-02", hasta: "2026-11-08" });
+  assert.deepEqual(ranking.map(({ nombre, ganancias, semana, sesiones, reservas, promedioSesion }) => [nombre, ganancias, semana, sesiones, reservas, promedioSesion]), [
+    ["Bruno", 400000, 200000, 2, 1, 200000],
+    ["Ana", 280000, 200000, 3, 3, 93333],
+  ]);
+});
+
+test("textos del arriendo: meses y cálculo", async () => {
+  const { formatMonth, monthOf, rentDetail, shiftMonth, tariffText } = await import("../src/utils/arriendos.js");
+  assert.equal(monthOf("2026-11-18"), "2026-11");
+  assert.equal(shiftMonth("2026-12", 1), "2027-01");
+  assert.equal(shiftMonth("2026-01", -1), "2025-12");
+  assert.match(formatMonth("2026-11"), /noviembre/);
+  const fila = { cobro: "turno", turnos: 7, precioUnitario: 12000, minimo: 60000 };
+  assert.equal(rentDetail(fila), "7 turnos × $12.000");
+  assert.equal(rentDetail({ ...fila, turnos: 2 }), "Mínimo mensual $60.000 (2 turnos)");
+  assert.equal(rentDetail({ cobro: "dia", dias: 1, precioUnitario: 15000 }), "1 día × $15.000");
+  assert.equal(rentDetail({ cobro: "mensual" }), "Monto mensual fijo");
+  assert.match(rentDetail({ cobro: null }), /Sin modalidad/);
+  assert.equal(tariffText({ cobro: "dia", monto: 15000, minimo: 0, montoReducido: 12000, diasReducido: 5 }),
+    "$15.000 por día · desde 5 días en el mes, $12.000 cada día");
+});
+
+test("métricas por mes y arriendo por modalidad", async () => {
+  const { monthRange, monthSummary, rentByModality, revenueByMonth } = await import("../src/utils/dashboard.js");
+  assert.deepEqual(monthRange("2026-02"), { desde: "2026-02-01", hasta: "2026-02-28" });
+  assert.deepEqual(monthRange("2026-12"), { desde: "2026-12-01", hasta: "2026-12-31" });
+  const noviembre = monthSummary(rows, "2026-11");
+  assert.equal(noviembre.ganancias, 200000, "a1 y b1 completadas en noviembre");
+  assert.equal(noviembre.porCobrar, 200000, "a2 y a3 programadas en noviembre");
+  const meses = revenueByMonth(rows, "2026-11", 2);
+  assert.deepEqual(meses.map(({ periodo, ganancias }) => [periodo, ganancias]), [["2026-10", 80000], ["2026-11", 200000]]);
+  const grupos = rentByModality([
+    { modalidad: "Rotativo", cargo: 60000, pagado: 0 }, { modalidad: "Full", cargo: 220000, pagado: 220000 },
+    { modalidad: "Rotativo", cargo: 84000, pagado: 60000 }, { modalidad: null, cargo: 0, pagado: 0 },
+  ]);
+  assert.deepEqual(grupos.map(({ modalidad, cargo, tatuadores }) => [modalidad, cargo, tatuadores]),
+    [["Full", 220000, 1], ["Rotativo", 144000, 2], ["Sin modalidad", 0, 1]]);
 });

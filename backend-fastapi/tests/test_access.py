@@ -82,11 +82,16 @@ class AccessTests(unittest.TestCase):
                 'usuarios': [user], 'rol': [role], 'puesto_titulares': [current],
             }
             pending = {name: iter(values) for name, values in data.items()}
+            modalities = [{'id': 1, 'nombre': 'Full'}, {'id': 2, 'nombre': 'Rotativo'}]
 
             def table(name):
-                values = pending[name]
                 mock = Mock()
+                if name == 'modalidad':
+                    mock.select.return_value.execute.return_value = SimpleNamespace(data=modalities)
+                    return mock
+                values = pending[name]
                 mock.select.return_value.eq.return_value.execute.side_effect = lambda: SimpleNamespace(data=next(values))
+                mock.insert.return_value.execute.return_value = SimpleNamespace(data=[{}])
                 return mock
             client.return_value.table.side_effect = table
             return data
@@ -100,6 +105,15 @@ class AccessTests(unittest.TestCase):
         response = self.api.post(path, json={'tatuadorId': uid})
         self.assertEqual(response.status_code, 409)
         self.assertIn('Puesto 8', response.json()['detail'])
+        # La modalidad debe coincidir con el tipo del puesto (Full).
+        setup([{**artist[0], 'modalidad': 2}], [{'nombre': 'Tatuador'}], [])
+        response = self.api.post(path, json={'tatuadorId': uid})
+        self.assertEqual(response.status_code, 422)
+        self.assertIn('modalidad Full', response.json()['detail'])
+        setup([{**artist[0], 'modalidad': None}], [{'nombre': 'Tatuador'}], [])
+        self.assertIn('no tiene modalidad', self.api.post(path, json={'tatuadorId': uid}).json()['detail'])
+        setup([{**artist[0], 'modalidad': 1}], [{'nombre': 'Tatuador'}], [])
+        self.assertEqual(self.api.post(path, json={'tatuadorId': uid}).status_code, 201)
 
     @patch('main.client')
     def test_removing_missing_titular_is_404(self, client):
@@ -230,3 +244,82 @@ class AccessTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class RegisterTests(unittest.TestCase):
+    """Registro manual de usuarios (POST /api/usuarios/)."""
+
+    def setUp(self):
+        self.api = TestClient(main.app)
+        main.app.dependency_overrides[main.get_current_user] = lambda: {'id': 'a', 'role': 'admin'}
+        self.body = {'email': 'Nuevo@Estudio.cl', 'nombre': '  Ana   Pérez ', 'password': 'una-clave-segura', 'rol': 2, 'modalidad': 1}
+
+    def tearDown(self):
+        main.app.dependency_overrides.clear()
+
+    def fake_db(self, client, created_profile=True, auth_error=None):
+        db = client.return_value
+        tables = {'rol': [{'id': 1, 'nombre': 'Admin'}, {'id': 2, 'nombre': 'Tatuador'}],
+                  'modalidad': [{'id': 1, 'nombre': 'Full'}]}
+
+        def table(name):
+            mock = Mock()
+            if name in tables:
+                mock.select.return_value.execute.return_value = SimpleNamespace(data=tables[name])
+            mock.update.return_value.eq.return_value.execute.return_value = SimpleNamespace(data=[{'id': 'u'}] if created_profile else [])
+            mock.insert.return_value.execute.return_value = SimpleNamespace(data=[{}])
+            self.tables[name] = mock
+            return mock
+        self.tables = {}
+        db.table.side_effect = table
+        if auth_error:
+            db.auth.admin.create_user.side_effect = Exception(auth_error)
+        else:
+            db.auth.admin.create_user.return_value = SimpleNamespace(user=SimpleNamespace(id='u'))
+        return db
+
+    def test_only_admins_register(self):
+        main.app.dependency_overrides[main.get_current_user] = lambda: {'id': 't', 'role': 'tatuador'}
+        self.assertEqual(self.api.post('/api/usuarios/', json=self.body).status_code, 403)
+
+    @patch('main.client')
+    def test_creates_confirmed_account_and_adjusts_the_profile(self, client):
+        db = self.fake_db(client)
+        response = self.api.post('/api/usuarios/', json=self.body)
+        self.assertEqual(response.status_code, 201, response.text)
+        sent = db.auth.admin.create_user.call_args.args[0]
+        self.assertEqual((sent['email'], sent['email_confirm'], sent['user_metadata']), ('nuevo@estudio.cl', True, {'nombre': 'Ana Pérez', 'modalidad': 1}))
+        self.tables['usuarios'].update.assert_called_with({'nombre': 'Ana Pérez', 'rol': 2, 'activo': True})
+        self.assertIn('Ya puede iniciar sesión', response.json()['message'])
+
+    @patch('main.client')
+    def test_artist_needs_a_modality_and_admin_gets_none(self, client):
+        db = self.fake_db(client)
+        self.assertEqual(self.api.post('/api/usuarios/', json={**self.body, 'modalidad': None}).status_code, 422)
+        self.assertEqual(self.api.post('/api/usuarios/', json={**self.body, 'modalidad': 9}).status_code, 422)
+        self.assertEqual(self.api.post('/api/usuarios/', json={**self.body, 'rol': 7}).status_code, 422)
+        db.auth.admin.create_user.assert_not_called()
+        self.assertEqual(self.api.post('/api/usuarios/', json={**self.body, 'rol': 1}).status_code, 201)
+        self.assertIsNone(db.auth.admin.create_user.call_args.args[0]['user_metadata']['modalidad'])
+
+    @patch('main.client')
+    def test_short_password_and_duplicate_email(self, client):
+        self.fake_db(client, auth_error='A user with this email address has already been registered')
+        self.assertEqual(self.api.post('/api/usuarios/', json={**self.body, 'password': 'corta'}).status_code, 422)
+        response = self.api.post('/api/usuarios/', json=self.body)
+        self.assertEqual(response.status_code, 409)
+        self.assertIn('Ya existe', response.json()['detail'])
+
+    @patch('main.client')
+    def test_profile_failure_removes_the_account(self, client):
+        db = self.fake_db(client)
+        original = db.table.side_effect
+
+        def broken(name):
+            mock = original(name)
+            if name == 'usuarios':
+                mock.update.return_value.eq.return_value.execute.side_effect = Exception('falla')
+            return mock
+        db.table.side_effect = broken
+        self.assertEqual(self.api.post('/api/usuarios/', json=self.body).status_code, 503)
+        db.auth.admin.delete_user.assert_called_once_with('u')

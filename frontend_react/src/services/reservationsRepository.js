@@ -16,5 +16,12 @@ export const reservationsRepository = {
       }),
     });
   },
+  // Borrar archiva la reserva (pasa al historial); restaurar la devuelve a la agenda.
   remove: (_user, id) => authRequest(`${path}/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  restore: (_user, id) => authRequest(`${path}/${encodeURIComponent(id)}/restaurar`, { method: "POST" }),
+  // Cambia el estado de una sola sesión.
+  setSessionStatus: (_user, reservaId, sesionId, estado) => authRequest(
+    `${path}/${encodeURIComponent(reservaId)}/sesiones/${encodeURIComponent(sesionId)}`,
+    { method: "PATCH", body: JSON.stringify({ estado }) },
+  ),
 };

@@ -1,20 +1,29 @@
 import useModalDialog from "../hooks/useModalDialog";
-import { completedSessions, reservationStatus } from "../utils/sessions";
-import { formatDate, formatPrice, formatWeekdayDate } from "../utils/format";
+import SessionStatusButtons from "./SessionStatusButtons";
+import { completedSessions, isArchived, reservationStatus } from "../utils/sessions";
+import { formatDate, formatDateTime, formatPrice, formatWeekdayDate } from "../utils/format";
+import { formatRut } from "../utils/rut";
 import "./ReservationDetailsModal.css";
 
 // Detalle de solo lectura de una reserva.
 // - Desde el calendario llega "sesion" (la sesión en la que se hizo clic) y se destaca arriba.
 // - Desde Reservas llega solo "reserva" y se listan todas sus sesiones.
-// Muestra el botón "Editar reserva" solo a quien puede editarla (canManage); onEdit recibe lo mismo que llegó.
+// Quien puede gestionarla (canManage) ve "Editar reserva" y, si llega onChangeStatus(reserva, sesionId, estado),
+// botones para cambiar el estado de cada sesión. onEdit recibe lo mismo que llegó.
+// Una reserva del historial no se edita: muestra cuándo se borró y, con onRestore, el botón "Restaurar".
 // Cliente y precio pueden venir vacíos: el backend los oculta en reservas de otros tatuadores.
-export default function ReservationDetailsModal({ sesion = null, reserva: reservaProp = null, canManage, onEdit, onClose }) {
+export default function ReservationDetailsModal({ sesion = null, reserva: reservaProp = null, canManage, onEdit, onChangeStatus, onRestore, onClose }) {
   const dialogRef = useModalDialog();
   const reserva = sesion?.reserva ?? reservaProp;
   const sesiones = reserva?.sesiones ?? [];
   const estado = reservationStatus(reserva);
   const hasCliente = Boolean(reserva?.cliente);
   const hasPrecio = reserva?.precio !== undefined && reserva?.precio !== null;
+  const archived = isArchived(reserva);
+  const canChangeStatus = canManage && !archived && Boolean(onChangeStatus);
+  const statusButtons = (item, label) => canChangeStatus && (
+    <SessionStatusButtons sesion={item} label={label} onChange={(estado) => onChangeStatus(reserva, item.id, estado)} />
+  );
 
   return (
     <dialog ref={dialogRef} className="reservation-modal reservation-details" aria-labelledby="reservation-details-title" onCancel={onClose}>
@@ -30,17 +39,20 @@ export default function ReservationDetailsModal({ sesion = null, reserva: reserv
         <p className="details-session-meta">
           {sesion.puesto}
           {sesion.total > 1 && <> · Sesión {sesion.numero} de {sesion.total}</>}
-          <span className={`reserva-estado ${sesion.estado.toLowerCase()}`}>{sesion.estado}</span>
+          {!canChangeStatus && <span className={`reserva-estado ${sesion.estado.toLowerCase()}`}>{sesion.estado}</span>}
         </p>
+        {statusButtons(sesion, "Estado de esta sesión")}
       </section>}
 
       {/* Datos de la reserva completa */}
       <dl className="details-grid">
         {hasCliente && <div><dt>Cliente</dt><dd>{reserva.cliente}</dd></div>}
+        {reserva?.clienteRut && <div><dt>RUT</dt><dd>{formatRut(reserva.clienteRut)}</dd></div>}
         <div><dt>Tatuador</dt><dd>{sesion?.tatuador ?? reserva?.tatuador}</dd></div>
         {hasPrecio && <div><dt>Precio total</dt><dd>{formatPrice(reserva.precio)}</dd></div>}
         <div><dt>Avance</dt><dd>{completedSessions(reserva)} de {sesiones.length} {sesiones.length === 1 ? "sesión" : "sesiones"}</dd></div>
         <div><dt>Estado de la reserva</dt><dd><span className={`reserva-estado ${estado.toLowerCase()}`}>{estado}</span></dd></div>
+        {archived && <div><dt>Borrada</dt><dd><time dateTime={reserva.archivadaEn}>{formatDateTime(reserva.archivadaEn)}</time></dd></div>}
       </dl>
 
       {(sesiones.length > 1 || !sesion) && (
@@ -52,7 +64,9 @@ export default function ReservationDetailsModal({ sesion = null, reserva: reserv
                 <span className="details-sessions-number">Sesión {index + 1}</span>
                 <time dateTime={`${item.fecha}T${item.horaInicio}`}>{formatDate(item.fecha)} · {item.horaInicio} – {item.horaFin}</time>
                 <span>{item.puesto}</span>
-                <span className={`reserva-estado ${item.estado.toLowerCase()}`}>{item.estado}</span>
+                {item.id === sesion?.id || !canChangeStatus
+                  ? <span className={`reserva-estado ${item.estado.toLowerCase()}`}>{item.estado}</span>
+                  : statusButtons(item, `Estado de la sesión ${index + 1}`)}
               </li>
             ))}
           </ol>
@@ -60,10 +74,12 @@ export default function ReservationDetailsModal({ sesion = null, reserva: reserv
       )}
 
       {!canManage && <p className="reservation-modal-description">Solo el tatuador de esta reserva o un administrador pueden editarla.</p>}
+      {archived && <p className="reservation-modal-description">Esta reserva está en el historial: no ocupa puestos ni aparece en la agenda. Restáurala para editarla.</p>}
 
       <div className="reservation-modal-actions">
-        <button type="button" className="reservation-button reservation-button-secondary" onClick={onClose} autoFocus={!canManage}>Cerrar</button>
-        {canManage && <button type="button" className="reservation-button" onClick={() => onEdit(sesion ?? reserva)} autoFocus>Editar reserva</button>}
+        <button type="button" className="reservation-button reservation-button-secondary" onClick={onClose} autoFocus={!canManage || archived}>Cerrar</button>
+        {canManage && !archived && <button type="button" className="reservation-button" onClick={() => onEdit(sesion ?? reserva)} autoFocus>Editar reserva</button>}
+        {canManage && archived && onRestore && <button type="button" className="reservation-button" onClick={() => onRestore(reserva)}>Restaurar</button>}
       </div>
     </dialog>
   );

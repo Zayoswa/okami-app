@@ -39,24 +39,68 @@
   text-align: center;
 }
 
+/* ---------- Arriendo del mes ---------- */
+
+.gerencial-rent {
+  margin-bottom: 28px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-panel);
+}
+
+.gerencial-rent-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 0;
+  padding: 14px 18px 10px;
+  border-bottom: 1.5px solid var(--color-text);
+}
+
+.gerencial-rent-header h2,
+.gerencial-section-title {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.gerencial-rent-header h2::first-letter {
+  text-transform: uppercase;
+}
+
+.gerencial-section-title {
+  margin-bottom: 0;
+  padding-bottom: 8px;
+  border-bottom: 1.5px solid var(--color-text);
+}
+
+.gerencial-rent-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-gold-text);
+}
+
 /* ---------- Indicadores ---------- */
 
 .gerencial-kpis {
   display: grid;
   grid-template-columns: 1.4fr repeat(3, 1fr);
-  gap: 14px;
-  margin-bottom: 18px;
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-border);
+  margin-bottom: 28px;
 }
 
+/* Cada indicador es una celda blanca; la separación de 1 px dibuja las líneas entre ellas */
 .kpi {
   display: grid;
   align-content: start;
   gap: 6px;
-  padding: 18px;
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  background: var(--color-surface);
-  box-shadow: var(--shadow-card);
+  padding: 16px 18px;
+  background: var(--color-panel);
 }
 
 .kpi-label {
@@ -73,12 +117,9 @@
 }
 
 /* El número principal del dashboard: uno solo por vista */
-.kpi--hero {
-  border-top: 4px solid var(--color-gold);
-}
-
 .kpi--hero .kpi-value {
-  font-size: 44px;
+  font-size: 40px;
+  font-variant-numeric: tabular-nums;
 }
 
 .kpi-delta {
@@ -101,7 +142,7 @@
 .gerencial-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 16px;
 }
 
 .chart-card {
@@ -110,11 +151,15 @@
   flex-direction: column;
   gap: 14px;
   min-width: 0;
-  padding: 18px;
+  padding: 16px 18px;
   border: 1px solid var(--color-border);
-  border-radius: 12px;
-  background: var(--color-surface);
-  box-shadow: var(--shadow-card);
+  border-radius: 6px;
+  background: var(--color-panel);
+}
+
+.chart-card > header {
+  padding-bottom: 8px;
+  border-bottom: 1.5px solid var(--color-text);
 }
 
 .chart-card--wide {
@@ -123,7 +168,7 @@
 
 .chart-card header h2 {
   margin: 0;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
 }
 
@@ -408,7 +453,6 @@
 
 .gerencial-sessions {
   display: grid;
-  gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -418,10 +462,9 @@
   display: grid;
   grid-template-columns: 120px minmax(0, 1fr) auto;
   gap: 10px;
-  padding: 7px 10px;
-  border-radius: 8px;
-  background: var(--color-surface-muted);
-  font-size: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 13px;
 }
 
 .gerencial-sessions-when {
@@ -439,9 +482,14 @@
   color: var(--color-muted);
 }
 
+/* Sesión por cerrar: los botones Completada / Cancelada van en su propia fila */
+.gerencial-sessions .session-status-buttons {
+  grid-column: 1 / -1;
+}
+
 .gerencial-sessions .gerencial-sessions-more {
   display: block;
-  background: none;
+  border-bottom: 0;
   color: var(--color-muted);
 }
 
@@ -496,4 +544,278 @@
   .donut-slice {
     transition: none;
   }
+}
+
+/* ---------- Tatuadores mejor pagados ---------- */
+
+.ranking-scroll {
+  overflow-x: auto;
+}
+
+.ranking-table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.ranking-table th {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: left;
+  color: var(--color-muted);
+}
+
+.ranking-table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--color-border-soft);
+  vertical-align: middle;
+}
+
+.ranking-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.ranking-table .ranking-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ranking-pos {
+  width: 32px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.ranking-name {
+  display: block;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.ranking-strong {
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.ranking-bar {
+  display: block;
+  max-width: 220px;
+  height: 4px;
+  margin-top: 6px;
+  border-radius: 2px;
+  background: var(--chart-grid);
+}
+
+.ranking-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--chart-bar);
+}
+
+/* =========================
+   ARRIENDO (Dashboard por mes)
+========================= */
+
+.gerencial-period-label--month {
+  min-width: 200px;
+}
+
+.gerencial-period-label--month::first-letter {
+  text-transform: uppercase;
+}
+
+.gerencial-rent .rent-kpis {
+  margin-bottom: 4px;
+}
+
+/* Columna de fondo: la meta (arriendo estimado); encima, la columna de lo cobrado */
+.column-target {
+  fill: var(--chart-grid);
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+
+.simple-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--color-text-soft);
+}
+
+.simple-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.simple-legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.simple-legend-swatch--bar {
+  background: var(--chart-bar);
+}
+
+.simple-legend-swatch--target {
+  background: var(--chart-grid);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.chart-card-header--link {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Cobro por tatuador */
+.rent-artists {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rent-artists li {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.rent-artists-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.rent-artists-name {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.rent-artists-name small {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-muted);
+}
+
+.rent-artists-bar {
+  height: 3px;
+  margin-top: 10px;
+  overflow: hidden;
+  background: var(--color-border);
+}
+
+.rent-artists-bar span {
+  display: block;
+  height: 100%;
+  background: var(--chart-bar);
+}
+
+.rent-artists-amount {
+  margin-top: 4px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted);
+}
+
+.rent-artists-amount strong {
+  color: var(--color-text);
+}
+
+.rent-artists-due {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.rent-status {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.rent-status--ok {
+  color: var(--color-success);
+}
+
+.rent-status--partial {
+  color: var(--color-gold-text);
+}
+
+.rent-status--due {
+  color: var(--color-danger);
+}
+
+.rent-status--none {
+  color: var(--color-muted);
+}
+
+/* Ventas (referencia): al final y compacto */
+.gerencial-sales {
+  margin-top: 44px;
+}
+
+.gerencial-sales .gerencial-section-title {
+  margin-bottom: 16px;
+}
+
+.gerencial-section-title span {
+  font-weight: 400;
+  color: var(--color-muted);
+}
+
+.gerencial-sales-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 2fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.gerencial-sales-kpis {
+  display: grid;
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-border);
+}
+
+.kpi--compact {
+  padding: 12px 16px;
+}
+
+.kpi--compact .kpi-value {
+  font-size: 20px;
+}
+
+.ranking-table--compact {
+  min-width: 360px;
+}
+
+@media (max-width: 760px) {
+  .gerencial-sales-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Mi panel: el KPI del arriendo propio lleva más texto */
+.kpi--rent .kpi-delta {
+  line-height: 1.5;
 }

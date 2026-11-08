@@ -4,9 +4,12 @@
 // sesiones no canceladas. Ejemplo: $300.000 en 3 sesiones → $100.000 cada una.
 // - "Ganancias" de un período = sesiones Completadas en ese período.
 // - "Por cobrar" de un período = sesiones Programadas en ese período.
+// - Reservas del historial (borradas): solo cuentan sus sesiones Completadas, porque ese trabajo ya se hizo y se cobró.
+//   Sus sesiones Programadas o Canceladas no cuentan en nada.
 // Las fechas son "YYYY-MM-DD" en hora de Santiago, igual que en el resto de la app.
 
 import { shiftDate, weekDays } from "./calendar.js";
+import { shiftMonth } from "./arriendos.js";
 import { reservationStatus } from "./sessions.js";
 
 export const STATUS_ORDER = ["Completada", "Programada", "Cancelada"];
@@ -22,31 +25,71 @@ export function sessionShare(reserva) {
   return activas ? (Number(reserva.precio) || 0) / activas : 0;
 }
 
-// Todas las sesiones con su reserva y su parte del precio.
+// Todas las sesiones con su reserva y su parte del precio (de las reservas archivadas, solo las Completadas).
 function sessionsWithShare(reservas) {
   return reservas.flatMap((reserva) => {
     const share = sessionShare(reserva);
-    return (reserva.sesiones ?? []).map((sesion) => ({ ...sesion, reserva, ingreso: sesion.estado === "Cancelada" ? 0 : share }));
+    return (reserva.sesiones ?? [])
+      .filter((sesion) => !reserva.archivadaEn || sesion.estado === "Completada")
+      .map((sesion) => ({ ...sesion, reserva, ingreso: sesion.estado === "Cancelada" ? 0 : share }));
   });
 }
 
 const inRange = (fecha, desde, hasta) => fecha >= desde && fecha <= hasta;
 
-// Resumen de una semana (lunes a domingo).
-export function weekSummary(reservas, lunes) {
-  const domingo = shiftDate(lunes, 6);
-  const semana = sessionsWithShare(reservas).filter(({ fecha }) => inRange(fecha, lunes, domingo));
+// Primer y último día del mes "YYYY-MM".
+export function monthRange(mes) {
+  return { desde: `${mes}-01`, hasta: shiftDate(`${shiftMonth(mes, 1)}-01`, -1) };
+}
+
+// Resumen de un período (fechas incluidas).
+export function rangeSummary(reservas, desde, hasta) {
+  const semana = sessionsWithShare(reservas).filter(({ fecha }) => inRange(fecha, desde, hasta));
   const sum = (estado) => semana.filter((item) => item.estado === estado).reduce((total, item) => total + item.ingreso, 0);
   const count = (estado) => semana.filter((item) => item.estado === estado).length;
   return {
-    desde: lunes,
-    hasta: domingo,
+    desde,
+    hasta,
     ganancias: Math.round(sum("Completada")),
     porCobrar: Math.round(sum("Programada")),
     completadas: count("Completada"),
     programadas: count("Programada"),
     canceladas: count("Cancelada"),
   };
+}
+
+// Resumen de una semana (lunes a domingo).
+export function weekSummary(reservas, lunes) {
+  return rangeSummary(reservas, lunes, shiftDate(lunes, 6));
+}
+
+// Resumen de un mes "YYYY-MM".
+export function monthSummary(reservas, mes) {
+  const { desde, hasta } = monthRange(mes);
+  return rangeSummary(reservas, desde, hasta);
+}
+
+// Ganancias de los últimos `months` meses, terminando en `mes`.
+export function revenueByMonth(reservas, mes, months = 6) {
+  return Array.from({ length: months }, (_, index) => {
+    const periodo = shiftMonth(mes, index - months + 1);
+    const { ganancias, porCobrar } = monthSummary(reservas, periodo);
+    return { periodo, ganancias, porCobrar };
+  });
+}
+
+// Arriendo del mes agrupado por modalidad: [{ modalidad, cargo, pagado, tatuadores }], de mayor a menor.
+export function rentByModality(filas) {
+  const groups = new Map();
+  for (const fila of filas) {
+    const key = fila.modalidad ?? "Sin modalidad";
+    const group = groups.get(key) ?? { modalidad: key, cargo: 0, pagado: 0, tatuadores: 0 };
+    group.cargo += fila.cargo;
+    group.pagado += fila.pagado;
+    group.tatuadores += 1;
+    groups.set(key, group);
+  }
+  return [...groups.values()].sort((a, b) => b.cargo - a.cargo || a.modalidad.localeCompare(b.modalidad, "es"));
 }
 
 // Ganancias de las últimas `weeks` semanas, terminando en la semana de `lunes`.
@@ -103,4 +146,32 @@ export function upcomingSessions(sesiones, fecha, hora, days = 7) {
 export function percentChange(actual, anterior) {
   if (!anterior) return null;
   return Math.round(((actual - anterior) / anterior) * 100);
+}
+
+// Ranking de tatuadores por ganancias entre dos fechas (sesiones completadas), de mayor a menor.
+// semana: { desde, hasta } para la columna de la semana seleccionada.
+export function artistRanking(reservas, desde, hasta, semana) {
+  const rows = new Map();
+  for (const item of sessionsWithShare(reservas)) {
+    const { reserva } = item;
+    const key = reserva.tatuadorId ?? reserva.tatuador;
+    if (!rows.has(key)) rows.set(key, { id: key, nombre: reserva.tatuador, ganancias: 0, semana: 0, sesiones: 0, reservas: new Set() });
+    if (item.estado !== "Completada") continue;
+    const row = rows.get(key);
+    if (inRange(item.fecha, desde, hasta)) {
+      row.ganancias += item.ingreso;
+      row.sesiones += 1;
+      row.reservas.add(reserva.id);
+    }
+    if (inRange(item.fecha, semana.desde, semana.hasta)) row.semana += item.ingreso;
+  }
+  return [...rows.values()]
+    .map(({ reservas: ids, ...row }) => ({
+      ...row,
+      ganancias: Math.round(row.ganancias),
+      semana: Math.round(row.semana),
+      reservas: ids.size,
+      promedioSesion: row.sesiones ? Math.round(row.ganancias / row.sesiones) : 0,
+    }))
+    .sort((a, b) => b.ganancias - a.ganancias || a.nombre.localeCompare(b.nombre, "es"));
 }

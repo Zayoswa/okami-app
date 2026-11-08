@@ -25,9 +25,11 @@ function columnPath(x, y, width, height) {
 }
 
 // Gráfico de columnas de una sola serie, con tooltip por columna.
-// data: [{ key, label, value, highlight, tooltipLabel }]; format: número → texto; formatAxis: idem, corto.
+// data: [{ key, label, value, target?, highlight, tooltipLabel }]; format: número → texto; formatAxis: idem, corto.
+// target (opcional): la meta de cada columna (por ejemplo, el arriendo estimado del mes). Se dibuja detrás,
+// en un tono claro, y la columna sólida (value, lo cobrado) va encima; targetLabel la nombra en el tooltip.
 // Se etiqueta solo la columna destacada y la más alta, para no llenar el gráfico de números.
-export default function ColumnChart({ data, format, formatAxis = format, ariaLabel, seriesLabel }) {
+export default function ColumnChart({ data, format, formatAxis = format, ariaLabel, seriesLabel, targetLabel = "meta" }) {
   const { containerRef, tip, show, hide } = useChartTooltip();
   // El SVG se dibuja al ancho real del contenedor: así textos y barras mantienen su tamaño en px.
   const [WIDTH, setWidth] = useState(640);
@@ -38,7 +40,7 @@ export default function ColumnChart({ data, format, formatAxis = format, ariaLab
     observer.observe(node);
     return () => observer.disconnect();
   }, [containerRef]);
-  const max = Math.max(0, ...data.map((item) => item.value));
+  const max = Math.max(0, ...data.map((item) => Math.max(item.value, item.target ?? 0)));
   const step = niceStep(max);
   const top = Math.max(step, Math.ceil(max / step) * step);
   const ticks = Array.from({ length: Math.round(top / step) + 1 }, (_, index) => index * step);
@@ -63,10 +65,17 @@ export default function ColumnChart({ data, format, formatAxis = format, ariaLab
         {data.map((item, index) => {
           const x = LEFT + slot * index + (slot - barWidth) / 2;
           const height = (item.value / top) * plotHeight;
+          const hasTarget = item.target !== undefined && item.target !== null;
+          const targetHeight = hasTarget ? (item.target / top) * plotHeight : 0;
           const labelled = item.value > 0 && (item.highlight || item.key === maxKey);
-          const content = { value: format(item.value), label: item.tooltipLabel ?? item.label, detail: seriesLabel };
+          const content = {
+            value: hasTarget ? `${format(item.value)} de ${format(item.target)}` : format(item.value),
+            label: item.tooltipLabel ?? item.label,
+            detail: hasTarget ? `${seriesLabel} / ${targetLabel}` : seriesLabel,
+          };
           return (
             <g key={item.key} className={`column${item.highlight ? " column--highlight" : ""}`}>
+              {hasTarget && <path d={columnPath(x, y(item.target), barWidth, targetHeight)} className="column-target" />}
               <path d={columnPath(x, y(item.value), barWidth, height)} className="column-mark" />
               {labelled && <text x={x + barWidth / 2} y={y(item.value) - 6} textAnchor="middle" className="chart-value-label">{formatAxis(item.value)}</text>}
               {(item.highlight || (data.length - 1 - index) % labelEvery === 0) && <text x={LEFT + slot * index + slot / 2} y={HEIGHT - 8} textAnchor="middle" className={`chart-axis-label${item.highlight ? " chart-axis-label--strong" : ""}`}>{item.label}</text>}

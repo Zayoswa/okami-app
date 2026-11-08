@@ -16,12 +16,14 @@ const weekdays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
 export default function Calendario({ user }) {
   const today = todayInSantiago();
-  const { sesiones, puestos, catalogos, loading, error, reload, saveReservation, deleteReservation } = useReservations(user);
+  const { sesiones, puestos, catalogos, loading, error, reload, saveReservation, deleteReservation, changeSessionStatus } = useReservations(user);
   const [selectedDate, setSelectedDate] = useState(today);
   const [spaceFilter, setSpaceFilter] = useState("todos");
   const [statusFilter, setStatusFilter] = useState("todos");
   const [modal, setModal] = useState(null);
-  const [details, setDetails] = useState(null);
+  // Id de la sesión abierta en el detalle: se muestra con los datos actuales (después de cambiar su estado).
+  const [detailsId, setDetailsId] = useState(null);
+  const details = detailsId ? sesiones.find((item) => item.id === detailsId) ?? null : null;
   const [deleting, setDeleting] = useState(null);
   const [message, setMessage] = useState("");
   const filtered = sesiones.filter((item) =>
@@ -36,12 +38,12 @@ export default function Calendario({ user }) {
   // Al hacer clic en una sesión se abre primero su detalle (para todos los usuarios).
   function openDetails(sesion) {
     setMessage("");
-    setDetails(sesion);
+    setDetailsId(sesion.id);
   }
 
   // Desde el detalle se pasa a editar la reserva completa con todas sus sesiones.
   function editFromDetails(sesion) {
-    setDetails(null);
+    setDetailsId(null);
     openModal(sesion);
   }
 
@@ -63,7 +65,7 @@ export default function Calendario({ user }) {
 
   async function handleDelete(reserva) {
     await deleteReservation(reserva.id);
-    setMessage("Reserva borrada correctamente.");
+    setMessage("Reserva borrada. Quedó en el Historial de Reservas, desde donde se puede restaurar.");
   }
 
   // Semana anterior o siguiente, manteniendo el mismo día de la semana seleccionado.
@@ -141,7 +143,7 @@ export default function Calendario({ user }) {
       />
       </>}
       {modal && <ReservationModal catalogos={catalogos} puestos={puestos} user={user} reserva={modal.reserva} sesiones={sesiones} initialDate={selectedDate} initialPuesto={spaceFilter === "todos" ? "" : spaceFilter} onSave={handleSave} onClose={() => setModal(null)} />}
-      {details && <ReservationDetailsModal sesion={details} canManage={canManageReservation(user, details)} onEdit={editFromDetails} onClose={() => setDetails(null)} />}
+      {details && <ReservationDetailsModal sesion={details} canManage={canManageReservation(user, details)} onEdit={editFromDetails} onChangeStatus={(reserva, sesionId, estado) => changeSessionStatus(reserva.id, sesionId, estado)} onClose={() => setDetailsId(null)} />}
       {deleting && <DeleteReservationModal reserva={deleting} onConfirm={handleDelete} onClose={() => setDeleting(null)} />}
     </div>
   );

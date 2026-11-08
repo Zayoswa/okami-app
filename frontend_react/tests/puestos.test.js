@@ -84,3 +84,10 @@ test("las sesiones próximas de un puesto excluyen las pasadas, canceladas, comp
   assert.deepEqual(upcomingSessions(sesiones, "5", "2026-11-10", "11:00").map(({ id }) => id),
     ["hoy-en-curso", "futura", "futura-tarde"]);
 });
+
+test("el estado del puesto se lee bien dentro de una frase", async () => {
+  const { puestoStateText } = await import("../src/utils/puestos.js");
+  assert.equal(puestoStateText("Deshabilitado"), "deshabilitado");
+  assert.equal(puestoStateText("Mantenimiento"), "en mantenimiento");
+  assert.equal(puestoStateText(""), "sin estado");
+});

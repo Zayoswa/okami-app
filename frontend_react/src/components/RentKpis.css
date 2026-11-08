@@ -1,0 +1,113 @@
+/* Indicadores del arriendo del mes: el principal (cobrado / estimado) es más ancho. */
+
+/* Hoja de balance: celdas separadas por líneas finas (1 px de rejilla sobre el color de la línea) */
+.rent-kpis {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 1px;
+  background: var(--color-border);
+}
+
+.rent-kpi {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  padding: 16px 18px;
+  background: var(--color-panel);
+}
+
+.rent-kpi--hero {
+  container-type: inline-size;
+}
+
+.rent-kpi-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.rent-kpi-value {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+/* El número se adapta al ancho de la tarjeta para que "cobrado / estimado" quepa en una línea */
+.rent-kpi--hero .rent-kpi-value {
+  font-size: clamp(26px, 9cqi, 40px);
+}
+
+/* "/ $460.000": el total esperado, más chico y atenuado junto a lo cobrado */
+.rent-kpi-of {
+  font-size: 0.55em;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--color-muted);
+}
+
+.rent-kpi-value--due {
+  color: var(--color-danger);
+}
+
+.rent-kpi-note {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.rent-kpi-note--due {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.rent-progress {
+  height: 4px;
+  margin-top: 6px;
+  overflow: hidden;
+  background: var(--color-border);
+}
+
+.rent-progress span {
+  display: block;
+  height: 100%;
+  background: var(--color-gold);
+  transition: width 0.3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rent-progress span {
+    transition: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .rent-kpis {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .rent-kpi--hero {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 480px) {
+  .rent-kpis {
+    grid-template-columns: 1fr;
+  }
+
+}
+
+/* Botón del KPI Pendiente (Dashboard → Arriendos) */
+.rent-kpi-link {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  text-decoration: none;
+  white-space: nowrap;
+}

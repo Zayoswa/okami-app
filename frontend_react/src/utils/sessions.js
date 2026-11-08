@@ -72,13 +72,16 @@ export function overlappingWithinReservation(sesiones) {
   return result;
 }
 
-// Datos para guardar la reserva cambiando solo el estado de una sesión; el resto queda igual.
-export function withSessionStatus(reserva, sesionId, estado) {
-  return {
-    id: reserva.id,
-    clienteId: reserva.clienteId,
-    tatuadorId: reserva.tatuadorId,
-    precio: reserva.precio,
-    sesiones: (reserva.sesiones ?? []).map((sesion) => sesion.id === sesionId ? { ...sesion, estado } : sesion),
-  };
+// Una reserva "borrada" queda archivada en el historial: no ocupa puestos ni aparece en la agenda.
+export function isArchived(reserva) {
+  return Boolean(reserva?.archivadaEn);
+}
+
+// Fecha que resume la reserva en su tarjeta: la próxima sesión Programada (desde hoy),
+// o si no queda ninguna, la última sesión. Devuelve { tipo: "proxima" | "ultima", sesion } o null.
+export function keySession(reserva, today) {
+  const ordered = [...(reserva.sesiones ?? [])].sort((a, b) => a.fecha.localeCompare(b.fecha) || a.horaInicio.localeCompare(b.horaInicio));
+  const next = ordered.find((sesion) => sesion.estado === "Programada" && sesion.fecha >= today);
+  if (next) return { tipo: "proxima", sesion: next };
+  return ordered.length ? { tipo: "ultima", sesion: ordered.at(-1) } : null;
 }

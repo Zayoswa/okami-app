@@ -76,11 +76,36 @@ test("los filtros del listado combinan nombre, fecha y estado", () => {
   assert.deepEqual(ids({ busqueda: "bruno", estado: "Programada" }), []);
 });
 
-test("cambiar el estado de una sesión conserva el resto de la reserva", async () => {
-  const { withSessionStatus } = await import("../src/utils/sessions.js");
-  const row = reservation("r", [session("a"), session("b", { fecha: "2026-10-11" })], { clienteId: "cli" });
-  const saved = withSessionStatus(row, "b", "Completada");
-  assert.deepEqual(saved.sesiones.map(({ id, estado }) => [id, estado]), [["a", "Programada"], ["b", "Completada"]]);
-  assert.deepEqual([saved.id, saved.clienteId, saved.tatuadorId, saved.precio], ["r", "cli", "t1", 50000]);
-  assert.equal(row.sesiones[1].estado, "Programada", "no modifica la reserva original");
+test("el buscador encuentra reservas por el RUT del cliente, con o sin formato", () => {
+  const rows = [
+    reservation("a", undefined, { cliente: "José Pérez", clienteRut: "123456785" }),
+    reservation("b", undefined, { cliente: "Marta Soto", clienteRut: "10000013K" }),
+    reservation("c", undefined, { cliente: "Sin RUT" }),
+  ];
+  const ids = (busqueda) => filterReservationList(rows, { busqueda }).map(({ id }) => id);
+  assert.deepEqual(ids("12.345.678-5"), ["a"]);
+  assert.deepEqual(ids("12345678"), ["a"]);
+  assert.deepEqual(ids("10000013-k"), ["b"]);
+  assert.deepEqual(ids("999"), []);
+  assert.deepEqual(ids("marta"), ["b"], "el nombre sigue funcionando");
+});
+
+test("una reserva con fecha de borrado está en el historial", async () => {
+  const { isArchived } = await import("../src/utils/sessions.js");
+  assert.equal(isArchived(reservation("a")), false);
+  assert.equal(isArchived(reservation("a", undefined, { archivadaEn: null })), false);
+  assert.equal(isArchived(reservation("a", undefined, { archivadaEn: "2026-11-07T12:00:00Z" })), true);
+});
+
+test("la tarjeta muestra la próxima sesión o, si no queda ninguna, la última", async () => {
+  const { keySession } = await import("../src/utils/sessions.js");
+  const row = reservation("r", [
+    session("c", { fecha: "2026-11-24" }),
+    session("a", { fecha: "2026-11-03", estado: "Completada" }),
+    session("b", { fecha: "2026-11-10" }),
+  ]);
+  assert.deepEqual([keySession(row, "2026-11-07").tipo, keySession(row, "2026-11-07").sesion.id], ["proxima", "b"]);
+  const done = reservation("d", [session("x", { fecha: "2026-10-01", estado: "Completada" }), session("y", { fecha: "2026-10-15", estado: "Cancelada" })]);
+  assert.deepEqual([keySession(done, "2026-11-07").tipo, keySession(done, "2026-11-07").sesion.id], ["ultima", "y"]);
+  assert.equal(keySession(reservation("e", []), "2026-11-07"), null);
 });

@@ -25,9 +25,9 @@ export function puestoOccupancy(sesiones, puestoId, fecha, hora) {
 
 // Tipos de puesto: Full y Compartido tienen titulares fijos; Rotativo es para tatuadores de paso o en arriendo.
 export const PUESTO_TIPOS = [
-  { id: "Full", max: 1, descripcion: "1 titular fijo" },
-  { id: "Compartido", max: 2, descripcion: "2 titulares fijos" },
-  { id: "Rotativo", max: 0, descripcion: "sin titulares, para tatuadores de paso o en arriendo" },
+  { id: "Full", max: 1, descripcion: "1 titular con modalidad Full" },
+  { id: "Compartido", max: 2, descripcion: "2 titulares con modalidad Compartido" },
+  { id: "Rotativo", max: 0, descripcion: "sin titulares, para Rotativo, Rotativo light y Guest" },
 ];
 
 export function maxTitulares(tipo) {
@@ -60,4 +60,11 @@ export function upcomingSessions(sesiones, puestoId, fecha, hora) {
     .filter((item) => item.puestoId === puestoId && isOpen(item) &&
       (item.fecha > fecha || (item.fecha === fecha && item.horaFin > hora)))
     .sort((a, b) => a.fecha.localeCompare(b.fecha) || a.horaInicio.localeCompare(b.horaInicio));
+}
+
+// Estado del puesto dentro de una frase: "Puesto 4 está deshabilitado" / "está en mantenimiento".
+export function puestoStateText(estado) {
+  const value = String(estado ?? "").trim().toLowerCase();
+  if (value === "mantenimiento") return "en mantenimiento";
+  return value || "sin estado";
 }

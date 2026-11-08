@@ -1,0 +1,288 @@
+/* =========================
+   ARRIENDOS (solo admin)
+   Mes, 3 indicadores, tabla por tatuador y tarifas.
+========================= */
+
+.arriendos-page {
+  width: 100%;
+  color: var(--color-text);
+}
+
+.arriendos-page .visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- Mes ---------- */
+
+.arriendos-period {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.arriendos-period .reservation-button {
+  padding: 8px 14px;
+}
+
+.arriendos-month {
+  min-width: 200px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.arriendos-month::first-letter {
+  text-transform: uppercase;
+}
+
+.arriendos-alert,
+.arriendos-notice {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.arriendos-alert {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.arriendos-notice {
+  background: var(--color-highlight);
+  color: var(--color-gold-text);
+}
+
+/* ---------- Indicadores: components/RentKpis ---------- */
+
+.arriendos-page .rent-kpis {
+  margin-bottom: 18px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+}
+
+.arriendo-due {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+/* ---------- Tabla ---------- */
+
+.arriendos-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.arriendos-table {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.arriendos-table thead th {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: left;
+  color: var(--color-muted);
+}
+
+.arriendos-table tbody th,
+.arriendos-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--color-border-soft);
+  text-align: left;
+  vertical-align: middle;
+  font-weight: 400;
+}
+
+.arriendos-table tbody tr:last-child th,
+.arriendos-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.arriendos-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.arriendo-name {
+  display: block;
+  font-weight: 600;
+}
+
+.arriendo-sub {
+  display: block;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.arriendo-detail {
+  color: var(--color-text-soft);
+}
+
+.arriendo-strong {
+  font-weight: 700;
+}
+
+.arriendo-status {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.arriendo-status--ok {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.arriendo-status--partial {
+  background: var(--color-highlight);
+  color: var(--color-gold-text);
+}
+
+.arriendo-status--due {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.arriendo-status--none {
+  background: var(--color-surface-muted);
+  color: var(--color-muted);
+}
+
+.arriendo-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.arriendo-actions .reservation-button {
+  padding: 7px 12px;
+  font-size: 12px;
+}
+
+.arriendo-payments-row td {
+  padding-top: 0;
+  background: var(--color-surface-muted);
+}
+
+.arriendo-payments {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 10px 0 0;
+  list-style: none;
+}
+
+.arriendo-payments li {
+  display: grid;
+  grid-template-columns: 100px 110px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.arriendo-payment-delete {
+  padding: 4px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-danger);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.arriendo-payment-delete:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+}
+
+.arriendo-empty {
+  text-align: center;
+  color: var(--color-muted);
+}
+
+/* ---------- Tarifas ---------- */
+
+.arriendos-tarifas {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+
+.arriendos-tarifas h2 {
+  margin-bottom: 10px;
+  font-size: 15px;
+}
+
+.arriendos-tarifas ul {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+/* ---------- Ventana de pago ---------- */
+
+.arriendo-modal-hint {
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--color-gold-text);
+}
+
+.arriendo-modal-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 0;
+  border: 0;
+}
+
+.arriendo-modal-fields label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.arriendo-modal-fields input {
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 400;
+}
+
+.arriendo-modal-note {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 760px) {
+  .arriendo-modal-fields {
+    grid-template-columns: 1fr;
+  }
+}

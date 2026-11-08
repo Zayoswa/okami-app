@@ -17,6 +17,10 @@ const MisReservas = lazy(() => import("./pages/MisReservas"));
 const Calendario = lazy(() => import("./pages/Calendario"));
 const Tatuadores = lazy(() => import("./pages/Tatuadores"));
 const Gerencial = lazy(() => import("./pages/Gerencial"));
+const Arriendos = lazy(() => import("./pages/Arriendos"));
+const Inicio = lazy(() => import("./pages/Inicio"));
+const MiPanel = lazy(() => import("./pages/MiPanel"));
+const Actividad = lazy(() => import("./pages/Actividad"));
 
 function App() {
   const [user, setUser] = useState(null);
@@ -53,7 +57,11 @@ function App() {
         element={user ? <Dashboard user={user} onLogout={logout} /> : <Navigate to="/login" replace />}
       >
         <Route index element={<Navigate to={homeForUser(user)} replace />} />
+        <Route path="inicio" element={<ModuleAccess user={user} moduleId="inicio"><Inicio user={user} /></ModuleAccess>} />
+        <Route path="actividad" element={<ModuleAccess user={user} moduleId="actividad"><Actividad /></ModuleAccess>} />
+        <Route path="mi-panel" element={<ModuleAccess user={user} moduleId="mi-panel"><MiPanel user={user} /></ModuleAccess>} />
         <Route path="dashboard" element={<ModuleAccess user={user} moduleId="dashboard"><Gerencial user={user} /></ModuleAccess>} />
+        <Route path="arriendos" element={<ModuleAccess user={user} moduleId="arriendos"><Arriendos /></ModuleAccess>} />
         <Route path="reservas" element={<ModuleAccess user={user} moduleId="reservas"><Reservas user={user} /></ModuleAccess>} />
         <Route path="mis-reservas" element={<ModuleAccess user={user} moduleId="mis-reservas"><MisReservas user={user} /></ModuleAccess>} />
         <Route path="tatuadores" element={<ModuleAccess user={user} moduleId="tatuadores"><Tatuadores /></ModuleAccess>} />
