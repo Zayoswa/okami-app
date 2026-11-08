@@ -32,3 +32,14 @@ const dayMonth = new Intl.DateTimeFormat("es-CL", { day: "2-digit", month: "2-di
 // "2026-11-18" → "mié 18-11"
 export const formatShortWeekdayDate = (fecha) =>
   `${shortWeekday.format(atNoon(fecha)).replace(".", "")} ${dayMonth.format(atNoon(fecha)).replace("/", "-")}`;
+
+// Precio corto para ejes y etiquetas de gráficos: 450000 → "$450 mil", 1250000 → "$1,3 M".
+export function formatPriceCompact(value) {
+  if (Math.abs(value) >= 1_000_000) return "$" + (value / 1_000_000).toFixed(1).replace(".", ",").replace(/,0$/, "") + " M";
+  if (Math.abs(value) >= 1_000) return "$" + Math.round(value / 1_000) + " mil";
+  return formatPrice(value);
+}
+
+// "2026-11-02" → "2 nov"
+const dayShortMonth = new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "short", timeZone: "UTC" });
+export const formatDayMonth = (fecha) => dayShortMonth.format(atNoon(fecha)).replace(".", "");

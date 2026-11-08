@@ -16,6 +16,7 @@ const Reservas = lazy(() => import("./pages/Reservas"));
 const MisReservas = lazy(() => import("./pages/MisReservas"));
 const Calendario = lazy(() => import("./pages/Calendario"));
 const Tatuadores = lazy(() => import("./pages/Tatuadores"));
+const Gerencial = lazy(() => import("./pages/Gerencial"));
 
 function App() {
   const [user, setUser] = useState(null);
@@ -52,6 +53,7 @@ function App() {
         element={user ? <Dashboard user={user} onLogout={logout} /> : <Navigate to="/login" replace />}
       >
         <Route index element={<Navigate to={homeForUser(user)} replace />} />
+        <Route path="dashboard" element={<ModuleAccess user={user} moduleId="dashboard"><Gerencial user={user} /></ModuleAccess>} />
         <Route path="reservas" element={<ModuleAccess user={user} moduleId="reservas"><Reservas user={user} /></ModuleAccess>} />
         <Route path="mis-reservas" element={<ModuleAccess user={user} moduleId="mis-reservas"><MisReservas user={user} /></ModuleAccess>} />
         <Route path="tatuadores" element={<ModuleAccess user={user} moduleId="tatuadores"><Tatuadores /></ModuleAccess>} />
