@@ -133,12 +133,6 @@
   font-weight: 600;
 }
 
-.editor-error {
-  padding: 10px 14px;
-  border-radius: 8px;
-  background: var(--color-danger-bg);
-}
-
 /* Campos: foco dorado y estados válido / inválido */
 .reservation-editor .reservation-form input,
 .reservation-editor .reservation-form select {

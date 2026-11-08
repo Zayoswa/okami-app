@@ -258,8 +258,12 @@ def modality_names(db):
     return {row['id']: row['nombre'].strip() for row in db.table('modalidad').select('id,nombre').execute().data}
 
 
+# Tipos de puesto sin titulares: Rotativo (lo agenda cualquiera) y Guest (solo tatuadores Guest).
+TIPOS_SIN_TITULARES = ('Rotativo', 'Guest')
+
+
 # Un puesto Full solo tiene titulares con modalidad Full, y uno Compartido, titulares Compartido.
-# Rotativo, Rotativo light y Guest no son titulares: agendan en puestos rotativos.
+# Rotativo, Rotativo light y Guest no son titulares: agendan en puestos rotativos (y los Guest, también en puestos Guest).
 def titular_modality_error(nombre, modalidad, tipo):
     if (modalidad or '').casefold() != tipo.casefold():
         actual = f'tiene modalidad {modalidad}' if modalidad else 'no tiene modalidad asignada'
@@ -334,7 +338,7 @@ def puesto_states(admin=Depends(require_admin)):
 
 class PuestoUpdateRequest(BaseModel):
     estadoId: int | None = Field(default=None, gt=0)
-    tipo: Literal["Full", "Compartido", "Rotativo"] | None = None
+    tipo: Literal["Full", "Compartido", "Rotativo", "Guest"] | None = None
 
 
 # Las sesiones ya agendadas se conservan: un puesto en mantenimiento solo rechaza sesiones nuevas o movidas.
@@ -407,6 +411,8 @@ def add_titular(puesto_id: int, data: TitularRequest, admin=Depends(require_admi
                 raise HTTPException(409, f"{users[0]['nombre']} ya es titular de {puesto['nombre']}.")
             other = db.table("puesto").select("nombre").eq("id", current[0]["puesto"]).execute().data
             raise HTTPException(409, f"{users[0]['nombre']} ya es titular de {other[0]['nombre'] if other else 'otro puesto'}. Quítalo de ahí primero.")
+        if puesto["tipo"] in TIPOS_SIN_TITULARES:
+            raise HTTPException(409, f"{puesto['nombre']} es un puesto {puesto['tipo']} y no tiene titulares.")
         error = titular_modality_error(users[0]["nombre"], modality_names(db).get(users[0]["modalidad"]), puesto["tipo"])
         if error:
             raise HTTPException(422, error)
@@ -539,7 +545,9 @@ def reservation_catalogs(user=Depends(get_current_user)):
     try:
         db = client(admin=True)
         if user['role'] == 'tatuador':
-            artists = [{'id': user['id'], 'nombre': user['name']}]
+            own = db.table('usuarios').select('modalidad').eq('id', user['id']).execute().data
+            modalidad = modality_names(db).get(own[0]['modalidad']) if own and own[0].get('modalidad') else None
+            artists = [{'id': user['id'], 'nombre': user['name'], 'modalidad': modalidad}]
         else:
             role_ids = [row['id'] for row in db.table('rol').select('id,nombre').execute().data
                         if row['nombre'].strip().lower() == 'tatuador']
@@ -630,6 +638,42 @@ def log_reservation(operation, reservation_id, user, antes):
     log_event(user, 'reserva', operation, resumen, reservation_id, detalle)
 
 
+def guest_puesto_error(data, antes, puestos, modalidad):
+    """Un puesto Guest solo acepta sesiones de tatuadores con modalidad Guest.
+    Igual que la regla de titulares: solo se revisan las sesiones nuevas o movidas (puesto, fecha u horario),
+    o todas si la reserva cambia de tatuador; una sesión ya agendada que no cambia se puede completar o cancelar.
+    puestos: {id: (nombre, tipo)}. modalidad: nombre de la modalidad del tatuador de la reserva, o None."""
+    if (modalidad or '').casefold() == 'guest':
+        return ''
+    previas = {str(s.get('id')): s for s in ((antes or {}).get('sesiones') or []) if isinstance(s, dict)}
+    cambia_tatuador = bool(antes) and str(antes.get('tatuadorId')) != str(data.tatuadorId)
+    for sesion in data.sesiones:
+        nombre, tipo = puestos.get(sesion.puestoId, ('', ''))
+        if sesion.estado == 'Cancelada' or tipo != 'Guest':
+            continue
+        previa = previas.get(str(sesion.id))
+        cambia = (previa is None or str(previa.get('puestoId')) != str(sesion.puestoId) or previa.get('fecha') != sesion.fecha.isoformat()
+                  or previa.get('horaInicio') != sesion.horaInicio or previa.get('horaFin') != sesion.horaFin)
+        if cambia or cambia_tatuador:
+            return f'{nombre} es un puesto Guest y solo lo usan tatuadores con modalidad Guest. Elige un puesto rotativo.'
+    return ''
+
+
+def guest_rule_data(data):
+    """Puestos {id: (nombre, tipo)} y modalidad del tatuador, solo si la reserva usa algún puesto Guest."""
+    try:
+        db = client(admin=True)
+        puestos = {row['id']: (row['nombre'], row.get('tipo') or 'Rotativo')
+                   for row in db.table('puesto').select('id,nombre,tipo').execute().data}
+        if not any(puestos.get(s.puestoId, ('', ''))[1] == 'Guest' for s in data.sesiones):
+            return puestos, None
+        rows = db.table('usuarios').select('modalidad').eq('id', str(data.tatuadorId)).execute().data
+        modalidad = modality_names(db).get(rows[0]['modalidad']) if rows and rows[0].get('modalidad') else None
+        return puestos, modalidad
+    except Exception as exc:
+        raise HTTPException(503, 'No se pudieron comprobar los puestos.') from exc
+
+
 def write_reservation(operation, reservation_id, data, user):
     params = {'p_actor': user['id'], 'p_operacion': operation, 'p_id': str(reservation_id)}
     antes = reservation_snapshot(user, reservation_id) if operation != 'crear' else None
@@ -643,6 +687,9 @@ def write_reservation(operation, reservation_id, data, user):
             raise HTTPException(422, error)
         rut = normalize_rut(data.clienteRut)
         error = rut_error(rut)
+        if error:
+            raise HTTPException(422, error)
+        error = guest_puesto_error(data, antes, *guest_rule_data(data))
         if error:
             raise HTTPException(422, error)
         params.update(p_cliente_nombre=nombre,

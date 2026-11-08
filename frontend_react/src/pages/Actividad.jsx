@@ -7,6 +7,7 @@ import { formatFullDate } from "../utils/format";
 import { actionTone, highlightParts } from "../utils/activityText";
 import "./Actividad.css";
 
+import Notice from "../components/Notice";
 const CATEGORIAS = [
   { id: "reserva", label: "Reservas" },
   { id: "sesion", label: "Sesiones" },
@@ -173,7 +174,7 @@ export default function Actividad() {
         <button type="button" className="reservation-button reservation-button-secondary" onClick={clearFilters} disabled={!hasFilters && !search}>Limpiar filtros</button>
       </div>
 
-      {error && <p className="actividad-alert" role="alert">{error}</p>}
+      {error && <Notice tone="danger">{error}</Notice>}
 
       {loading ? <LoadingScreen message="Cargando actividad…" /> : <>
         {grupos.length === 0 && !error && (

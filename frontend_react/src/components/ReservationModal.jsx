@@ -9,6 +9,7 @@ import { cleanClientName, clientNameError } from "../utils/clientName";
 import { formatPrice } from "../utils/format";
 import "./ReservationModal.css";
 
+import Notice from "./Notice";
 // "11:00" y "13:30" → "2 h 30 min". Devuelve "" si el horario no es válido.
 function durationLabel(inicio, fin) {
   if (!inicio || !fin || fin <= inicio) return "";
@@ -37,6 +38,8 @@ export default function ReservationModal({ puestos, catalogos, user, reserva, se
   const [precio, setPrecio] = useState(reserva?.precio ?? "");
   // Puesto del que el tatuador es titular: se propone por defecto en las sesiones nuevas.
   const homePuesto = titularPuesto(puestos, tatuadorId);
+  // Modalidad del tatuador elegido: un puesto Guest solo acepta tatuadores Guest.
+  const modalidad = catalogos?.tatuadores?.find((item) => String(item.id) === String(tatuadorId))?.modalidad ?? "";
   const [sessions, setSessions] = useState(() => reserva?.sesiones?.length
     ? reserva.sesiones.map((item) => ({ ...item }))
     : [newSession(initialDate >= today ? initialDate : today, initialPuesto || (homePuesto?.disponible ? homePuesto.id : ""))]);
@@ -83,10 +86,11 @@ export default function ReservationModal({ puestos, catalogos, user, reserva, se
     if (!puesto) return "Selecciona un puesto.";
     const puestoChanged = scheduleChanged || original.puestoId !== sesion.puestoId;
     // Igual que en el servidor: una sesión ya agendada que no cambia se puede completar o cancelar.
-    const blocked = sesion.estado !== "Cancelada" ? puestoBlockReason(puesto, tatuadorId) : "";
+    const blocked = sesion.estado !== "Cancelada" ? puestoBlockReason(puesto, tatuadorId, modalidad) : "";
     const artistChanged = Boolean(original) && reserva.tatuadorId !== tatuadorId;
     if (blocked === "Solo titulares" && (puestoChanged || artistChanged)) return `${puesto.nombre} es un puesto ${puesto.tipo} y solo lo usan sus titulares. Elige tu puesto o uno rotativo.`;
-    if (blocked && blocked !== "Solo titulares" && puestoChanged) return `${puesto.nombre} está ${puestoStateText(puesto.estado)} y no acepta sesiones nuevas. Elige otro puesto.`;
+    if (blocked === "Solo Guest" && (puestoChanged || artistChanged)) return `${puesto.nombre} es un puesto Guest y solo lo usan tatuadores con modalidad Guest. Elige un puesto rotativo.`;
+    if (blocked && blocked !== "Solo titulares" && blocked !== "Solo Guest" && puestoChanged) return `${puesto.nombre} está ${puestoStateText(puesto.estado)} y no acepta sesiones nuevas. Elige otro puesto.`;
     if (crossing.has(index)) return "Se cruza con otra sesión de esta reserva.";
     const [taken] = puestoConflicts(sesiones, sesion, reserva?.id);
     if (taken) return `${puesto.nombre} está ocupado de ${taken.horaInicio} a ${taken.horaFin} (${taken.tatuador}).`;
@@ -237,7 +241,7 @@ export default function ReservationModal({ puestos, catalogos, user, reserva, se
                       <option value="" disabled>Selecciona un puesto</option>
                       {puestos.map((puesto) => {
                         const taken = puestoConflicts(sesiones, { ...sesion, puestoId: puesto.id }, reserva?.id).length > 0;
-                        const blocked = puestoBlockReason(puesto, tatuadorId);
+                        const blocked = puestoBlockReason(puesto, tatuadorId, modalidad);
                         return <option key={puesto.id} value={puesto.id} disabled={Boolean(blocked) && puesto.id !== original?.puestoId}>
                           {puesto.nombre}{puesto.id === homePuesto?.id ? " · Titular" : ""}{blocked ? ` — ${blocked}` : taken ? " — Ocupado en ese horario" : ""}
                         </option>;
@@ -268,7 +272,7 @@ export default function ReservationModal({ puestos, catalogos, user, reserva, se
             <button type="button" className="add-session" onClick={addSession} disabled={sessions.length >= 30}>+ Agregar otra sesión</button>
           </section>
 
-          {error && <p className="reservation-form-error editor-error" role="alert">{error}</p>}
+          {error && <Notice tone="danger" className="notice--compact">{error}</Notice>}
         </fieldset>
 
         {/* Pie fijo con resumen y acciones */}

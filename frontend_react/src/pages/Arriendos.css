@@ -42,30 +42,14 @@
   text-transform: uppercase;
 }
 
-.arriendos-alert,
-.arriendos-notice {
-  margin-bottom: 16px;
-  padding: 12px 16px;
-  border-radius: 8px;
-  font-size: 13px;
-}
-
-.arriendos-alert {
-  background: var(--color-danger-bg);
-  color: var(--color-danger);
-}
-
-.arriendos-notice {
-  background: var(--color-highlight);
-  color: var(--color-gold-text);
-}
+/* Avisos: components/Notice */
 
 /* ---------- Indicadores: components/RentKpis ---------- */
 
 .arriendos-page .rent-kpis {
   margin-bottom: 18px;
   overflow: hidden;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-panel-border);
   border-radius: 6px;
 }
 
@@ -74,13 +58,92 @@
   font-weight: 600;
 }
 
+/* ---------- Filtros y páginas ---------- */
+
+.arriendos-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.arriendos-filters label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.arriendos-filters input,
+.arriendos-filters select {
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.arriendos-filter-search {
+  flex: 1 1 220px;
+}
+
+.arriendos-filters .reservation-button {
+  min-height: 40px;
+  padding: 8px 14px;
+}
+
+.arriendos-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.arriendos-pager p {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.arriendos-pager-buttons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.arriendos-pager .reservation-button {
+  padding: 7px 12px;
+  font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .arriendos-filters label {
+    flex: 1 1 calc(50% - 10px);
+  }
+
+  .arriendos-filter-search {
+    flex-basis: 100%;
+  }
+}
+
 /* ---------- Tabla ---------- */
 
 .arriendos-scroll {
   overflow-x: auto;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-panel-border);
   border-radius: 12px;
-  background: var(--color-surface);
+  background: var(--color-panel);
   box-shadow: var(--shadow-card);
 }
 
@@ -93,7 +156,7 @@
 
 .arriendos-table thead th {
   padding: 10px 12px;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-panel-border);
   font-size: 11px;
   font-weight: 600;
   text-align: left;
@@ -103,7 +166,7 @@
 .arriendos-table tbody th,
 .arriendos-table td {
   padding: 12px;
-  border-bottom: 1px solid var(--color-border-soft);
+  border-bottom: 1px solid var(--color-panel-border);
   text-align: left;
   vertical-align: middle;
   font-weight: 400;
@@ -164,7 +227,7 @@
 }
 
 .arriendo-status--none {
-  background: var(--color-surface-muted);
+  background: var(--color-bg);
   color: var(--color-muted);
 }
 
@@ -182,7 +245,7 @@
 
 .arriendo-payments-row td {
   padding-top: 0;
-  background: var(--color-surface-muted);
+  background: var(--color-bg);
 }
 
 .arriendo-payments {
@@ -226,9 +289,9 @@
 .arriendos-tarifas {
   margin-top: 18px;
   padding: 18px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-panel-border);
   border-radius: 12px;
-  background: var(--color-surface);
+  background: var(--color-panel);
 }
 
 .arriendos-tarifas h2 {
@@ -246,12 +309,6 @@
 }
 
 /* ---------- Ventana de pago ---------- */
-
-.arriendo-modal-hint {
-  margin-bottom: 12px;
-  font-size: 13px;
-  color: var(--color-gold-text);
-}
 
 .arriendo-modal-fields {
   display: grid;

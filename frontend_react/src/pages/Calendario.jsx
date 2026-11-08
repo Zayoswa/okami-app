@@ -12,6 +12,7 @@ import { canManageReservation } from "../utils/access";
 import { formatFullDate } from "../utils/format";
 import "./Calendario.css";
 
+import Notice from "../components/Notice";
 const weekdays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
 export default function Calendario({ user }) {
@@ -95,9 +96,9 @@ export default function Calendario({ user }) {
         </div>
         <CreateReservationButton disabled={loading || Boolean(error)} onClick={() => openModal()} />
       </div>
-      {message && <p className="reservation-success" role="status">{message}</p>}
+      {message && <Notice tone="ok">{message}</Notice>}
       {loading && <LoadingScreen message="Cargando reservas y puestos…" />}
-      {error && <div role="alert"><p>{error}</p><button type="button" className="reservation-button" onClick={reload}>Reintentar</button></div>}
+      {error && <Notice tone="danger" action={<button type="button" className="reservation-button reservation-button-secondary" onClick={reload}>Reintentar</button>}>{error}</Notice>}
       {!loading && !error && <>
       <section className="calendar-month calendar-week" aria-labelledby="calendar-month-title">
         <div className="calendar-month-header">

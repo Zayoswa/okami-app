@@ -12,6 +12,7 @@ import { monthSummary, revenueByMonth, sessionsToClose, statusCounts, upcomingSe
 import { formatPrice, formatPriceCompact } from "../utils/format";
 import "./Gerencial.css";
 
+import Notice from "../components/Notice";
 const HISTORY_MONTHS = 6;
 
 // Arriendo del propio tatuador en el mes (solo lectura). null mientras carga.
@@ -58,7 +59,7 @@ export default function MiPanel({ user }) {
       </p>
 
       {loading && <LoadingScreen message="Cargando tu panel…" />}
-      {error && <div role="alert"><p>{error}</p><button type="button" className="reservation-button" onClick={reload}>Reintentar</button></div>}
+      {error && <Notice tone="danger" action={<button type="button" className="reservation-button reservation-button-secondary" onClick={reload}>Reintentar</button>}>{error}</Notice>}
 
       {!loading && !error && <>
         <div className="gerencial-period" role="group" aria-label="Mes del panel">

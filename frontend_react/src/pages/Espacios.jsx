@@ -11,6 +11,7 @@ import useConfirm from "../hooks/useConfirm";
 import useAutoRefresh from "../hooks/useAutoRefresh";
 import "./Espacios.css";
 
+import Notice from "../components/Notice";
 const isHabilitado = (estado) => String(estado ?? "").trim().toLowerCase() === "habilitado";
 
 // Lista de sesiones para los avisos: "mié 18-11 · 10:00–13:00 · Jaimito". Muestra hasta 5.
@@ -116,10 +117,14 @@ export default function Espacios({ user }) {
       setError(`${puesto.nombre} tiene ${titulares.length} titular(es) y un puesto ${tipo} admite ${maxTitulares(tipo)}. Quita titulares antes de cambiar el tipo.`);
       return;
     }
-    // Solo al pasar de Rotativo a Full/Compartido aparece la restricción de "solo titulares".
-    if (puesto.tipo === "Rotativo" && maxTitulares(tipo) > 0) {
+    // Al pasar de un puesto abierto a Full/Compartido (solo titulares) o a Guest (solo tatuadores Guest),
+    // avisa de las sesiones ya agendadas que no cumplirían la regla nueva.
+    const restringe = (maxTitulares(puesto.tipo) === 0 && maxTitulares(tipo) > 0) || (tipo === "Guest" && puesto.tipo !== "Guest");
+    if (restringe) {
       const ids = new Set(titulares.map((titular) => String(titular.id)));
-      const ajenas = pendingSessions(puesto)?.filter((item) => !ids.has(String(item.tatuadorId))) ?? null;
+      const modalidades = new Map(tatuadores.map((item) => [String(item.id), String(item.modalidad ?? "").toLowerCase()]));
+      const cumple = (item) => tipo === "Guest" ? modalidades.get(String(item.tatuadorId)) === "guest" : ids.has(String(item.tatuadorId));
+      const ajenas = pendingSessions(puesto)?.filter((item) => !cumple(item)) ?? null;
       if (ajenas === null || ajenas.length) {
         const ok = await confirm(ajenas === null ? {
           title: `Cambiar ${puesto.nombre} a ${tipo}`,
@@ -128,7 +133,7 @@ export default function Espacios({ user }) {
           confirmLabel: `Cambiar a ${tipo}`,
         } : {
           title: `Cambiar ${puesto.nombre} a ${tipo}`,
-          message: `${puesto.nombre} tiene ${sessionCount(ajenas.length)} de tatuadores que no son sus titulares:`,
+          message: `${puesto.nombre} tiene ${sessionCount(ajenas.length)} de tatuadores que no son ${tipo === "Guest" ? "Guest" : "sus titulares"}:`,
           items: sessionItems(ajenas, true),
           note: `Si lo cambias a ${tipo}, esas sesiones se mantienen en este puesto, pero no se podrán agendar sesiones nuevas de esos tatuadores. Puedes moverlas a otro puesto desde Reservas.`,
           question: "¿Cambiar el tipo de todos modos?",
@@ -198,8 +203,8 @@ export default function Espacios({ user }) {
       <p className="espacios-tipos">
         {PUESTO_TIPOS.map((tipo) => <span key={tipo.id}><strong>{tipo.id}</strong>: {tipo.descripcion}</span>)}
       </p>
-      {error && <p className="espacios-alert" role="alert">{error}</p>}
-      {message && <p className="reservation-success" role="status">{message}</p>}
+      {error && <Notice tone="danger">{error}</Notice>}
+      {message && <Notice tone="ok">{message}</Notice>}
 
       {loading ? <LoadingScreen message="Cargando espacios…" /> : <>
         <ul className="espacios-summary" aria-label="Resumen de espacios">
@@ -208,7 +213,7 @@ export default function Espacios({ user }) {
           <li className="espacios-summary-off">{items.length - habilitados} no disponibles</li>
           <li className="espacios-summary-busy">{ocupados} ocupados ahora</li>
         </ul>
-        {occupancyError && <p className="espacios-alert" role="alert">{occupancyError}</p>}
+        {occupancyError && <Notice tone="warning">{occupancyError}</Notice>}
 
         <ul className="espacios-grid">
           {items.map((item) => {
@@ -237,8 +242,10 @@ export default function Espacios({ user }) {
 
                 <div className="espacio-titulares">
                   <p className="espacio-titulares-label">Titulares</p>
-                  {puesto.tipo === "Rotativo" ? (
-                    <p className="espacio-titulares-empty">Sin titulares: lo usa quien lo agende.</p>
+                  {maxTitulares(puesto.tipo) === 0 ? (
+                    <p className="espacio-titulares-empty">
+                      {puesto.tipo === "Guest" ? "Sin titulares: solo lo agendan tatuadores Guest." : "Sin titulares: lo usa quien lo agende."}
+                    </p>
                   ) : (
                     <>
                       {titulares.length ? (

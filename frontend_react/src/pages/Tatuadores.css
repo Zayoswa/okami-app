@@ -1,8 +1,8 @@
 .artists-page { max-width: 960px; margin: auto; padding: 24px; }
-.artists-page form, .artists-page li { background: white; border: 1px solid #e5dfd6; border-radius: 12px; padding: 20px; margin: 16px 0; }
+.artists-page form, .artists-page li { background: var(--color-panel); border: 1px solid var(--color-panel-border); border-radius: 12px; padding: 20px; margin: 16px 0; }
 .artists-page form { display: grid; gap: 14px; }
 .artists-page label { display: grid; gap: 6px; }
-.artists-page input, .artists-page select { padding: 10px; border: 1px solid #ccc; border-radius: 6px; font: inherit; width: 100%; box-sizing: border-box; }
+.artists-page input, .artists-page select { padding: 10px; border: 1px solid var(--color-border); background: var(--color-surface); border-radius: 6px; font: inherit; width: 100%; box-sizing: border-box; }
 .artists-page button { background: #1b1b18; color: white; padding: 10px 16px; border: 0; border-radius: 6px; cursor: pointer; }
 .artists-page button:disabled { opacity: .5; cursor: wait; }
 .artists-page ul { list-style: none; padding: 0; }

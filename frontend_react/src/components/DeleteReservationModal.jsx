@@ -3,6 +3,7 @@ import useModalDialog from "../hooks/useModalDialog";
 import { reservationRange } from "../utils/sessions";
 import { formatDate } from "../utils/format";
 
+import Notice from "./Notice";
 export default function DeleteReservationModal({ reserva, onConfirm, onClose }) {
   const dialogRef = useModalDialog();
   const [error, setError] = useState("");
@@ -38,7 +39,7 @@ export default function DeleteReservationModal({ reserva, onConfirm, onClose }) 
         La reserva pasa al <strong>Historial</strong>: deja de ocupar el puesto y la agenda, pero se conserva con sus datos
         y se puede restaurar. Si tenía sesiones completadas, siguen contando en las ganancias. Para quitar solo una sesión, edita la reserva.
       </p>
-      {error && <p className="reservation-form-error" role="alert">{error}</p>}
+      {error && <Notice tone="danger" className="notice--compact">{error}</Notice>}
       <div className="reservation-modal-actions">
         <button type="button" className="reservation-button reservation-button-secondary" onClick={onClose} disabled={saving} autoFocus>Cancelar</button>
         <button type="button" className="reservation-button reservation-button-danger" onClick={handleConfirm} disabled={saving}>{saving ? "Borrando…" : "Borrar reserva"}</button>

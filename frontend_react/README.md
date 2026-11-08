@@ -13,7 +13,7 @@ La API local se configura en `.env.development`. Para personalizarla, copiar
 
 - Admin: Reservas Generales, Calendario y Tatuadores (invitación y activación).
 - Tatuador: Mis Reservas y Calendario.
-- Dashboard Gerencial, Alertas, Perfil y Documentacion: módulos pendientes según el rol, sin navegación ni contenido.
+- Dashboard Gerencial, Alertas y Documentacion: módulos pendientes según el rol, sin navegación ni contenido.
 - Crear, editar y borrar con confirmación, filtros, KPI y paginación de siete reservas.
 - Sesiones con fecha, inicio, término y espacio; agenda mensual y columnas por espacio.
 

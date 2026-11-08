@@ -24,6 +24,10 @@ class ReservationsTests(unittest.TestCase):
             patcher = patch(f'main.{name}', return_value=None)
             patcher.start()
             self.addCleanup(patcher.stop)
+        # Sin puestos Guest: la regla del puesto Guest se prueba aparte (GuestPuestoTests).
+        patcher = patch('main.guest_rule_data', return_value=({}, None))
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def tearDown(self):
         main.app.dependency_overrides.clear()
@@ -196,3 +200,48 @@ class ReservationsTests(unittest.TestCase):
         self.sign_in()
         client.return_value.rpc.return_value.execute.side_effect = APIError({'code':'42501','message':'Acceso denegado.'})
         self.assertEqual(self.api.delete(f'/api/reservas/{RESERVA}').status_code, 403)
+
+
+class GuestPuestoTests(unittest.TestCase):
+    """Un puesto Guest solo acepta sesiones de tatuadores con modalidad Guest."""
+    PUESTOS = {7: ('Puesto 7', 'Guest'), 8: ('Puesto 8', 'Rotativo')}
+
+    def data(self, *sesiones, tatuador=ACTOR):
+        return main.ReservationRequest(**{**PAYLOAD, 'tatuadorId': tatuador, 'sesiones': list(sesiones or [SESION])})
+
+    def test_guest_artist_can_book_a_guest_puesto(self):
+        self.assertEqual(main.guest_puesto_error(self.data(), None, self.PUESTOS, 'Guest'), '')
+
+    def test_other_modalities_cannot_book_a_guest_puesto(self):
+        for modalidad in ('Rotativo', 'Rotativo light', 'Full', None):
+            error = main.guest_puesto_error(self.data(), None, self.PUESTOS, modalidad)
+            self.assertIn('Puesto 7 es un puesto Guest', error)
+
+    def test_rotativo_puesto_stays_open_to_everyone(self):
+        self.assertEqual(main.guest_puesto_error(self.data(session(puestoId=8)), None, self.PUESTOS, 'Full'), '')
+
+    def test_cancelled_session_is_not_checked(self):
+        self.assertEqual(main.guest_puesto_error(self.data(session(estado='Cancelada')), None, self.PUESTOS, 'Full'), '')
+
+    def test_unchanged_session_can_still_be_edited(self):
+        # La sesión ya estaba agendada en el puesto Guest (por ejemplo, el tatuador cambió de modalidad después).
+        antes = {'tatuadorId': ACTOR, 'sesiones': [{**SESION, 'puestoId': '7'}]}
+        self.assertEqual(main.guest_puesto_error(self.data(session(estado='Completada')), antes, self.PUESTOS, 'Rotativo'), '')
+
+    def test_moving_or_reassigning_is_checked(self):
+        antes = {'tatuadorId': ACTOR, 'sesiones': [{**SESION, 'puestoId': '8'}]}
+        self.assertTrue(main.guest_puesto_error(self.data(), antes, self.PUESTOS, 'Rotativo'))
+        otro = '33333333-3333-3333-3333-333333333333'
+        antes = {'tatuadorId': otro, 'sesiones': [{**SESION, 'puestoId': '7'}]}
+        self.assertTrue(main.guest_puesto_error(self.data(), antes, self.PUESTOS, 'Rotativo'))
+
+    @patch('main.reservation_rpc')
+    @patch('main.guest_rule_data', return_value=(PUESTOS, 'Full'))
+    def test_api_rejects_before_reaching_the_database(self, _rule, rpc):
+        api = TestClient(main.app)
+        main.app.dependency_overrides[main.get_current_user] = lambda: {'id': ACTOR, 'role': 'tatuador'}
+        self.addCleanup(main.app.dependency_overrides.clear)
+        response = api.post('/api/reservas', json=PAYLOAD)
+        self.assertEqual(response.status_code, 422)
+        self.assertIn('puesto Guest', response.json()['detail'])
+        rpc.assert_not_called()

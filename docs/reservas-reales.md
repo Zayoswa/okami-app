@@ -53,6 +53,16 @@ Ejecuta [010_reglas_uso_puestos.sql](../backend-fastapi/migrations/010_reglas_us
 - **Full y Compartido** solo aceptan sesiones de sus titulares. Para prestar un puesto, el admin lo cambia a **Rotativo**, que está abierto a todos los tatuadores, titulares incluidos.
 - Igual que con mantenimiento, las sesiones ya agendadas se conservan y se pueden completar o cancelar. Si una reserva pasa a otro tatuador, sus sesiones en puestos Full o Compartido vuelven a validarse.
 
+## Puesto Guest
+
+Ejecuta [015_puesto_guest.sql](../backend-fastapi/migrations/015_puesto_guest.sql) después de 014. No borra datos.
+
+- **Guest:** cuarto tipo de puesto. No tiene titulares y solo acepta sesiones de tatuadores con modalidad **Guest**.
+- Los tatuadores Guest también pueden seguir agendando en puestos **Rotativo**, que siguen abiertos a todos.
+- La regla la valida el backend al crear o editar una reserva (`guest_puesto_error` en `main.py`), no una función SQL; la migración solo permite el valor nuevo del tipo.
+- Igual que con los titulares: una sesión ya agendada que no cambia se puede completar o cancelar aunque el tatuador haya cambiado de modalidad. Si se mueve la sesión o la reserva pasa a otro tatuador, se vuelve a validar.
+- En Espacios, al cambiar un puesto a Guest se avisa de las sesiones pendientes de tatuadores que no son Guest; esas sesiones se conservan.
+
 ## Estados de los puestos
 
 Ejecuta [011_estados_puestos.sql](../backend-fastapi/migrations/011_estados_puestos.sql) después de 010. No borra datos.

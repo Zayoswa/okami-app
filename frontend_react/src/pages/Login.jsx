@@ -7,6 +7,7 @@ import "./Login.css";
 
 
 
+import Notice from "../components/Notice";
 export default function Login({ setUser }) {
     const navigate = useNavigate();
     const [email, setEmail] = useState("");
@@ -70,9 +71,7 @@ export default function Login({ setUser }) {
             </button>
 
             {message && (
-                <p className="login-message" role="alert">
-                {message}
-                </p>
+                <Notice tone="danger" className="notice--compact notice--block">{message}</Notice>
             )}
 
             </form>

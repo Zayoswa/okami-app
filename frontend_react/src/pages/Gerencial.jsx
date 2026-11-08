@@ -16,6 +16,7 @@ import {
 import { formatPrice, formatPriceCompact } from "../utils/format";
 import "./Gerencial.css";
 
+import Notice from "../components/Notice";
 const HISTORY_MONTHS = 6;
 
 // Arriendo del mes y de los meses anteriores. Se vuelve a pedir al cambiar de mes o cuando cambian las
@@ -99,7 +100,7 @@ export default function Gerencial({ user }) {
       </p>
 
       {loading && <LoadingScreen message="Cargando métricas…" />}
-      {error && <div role="alert"><p>{error}</p><button type="button" className="reservation-button" onClick={reload}>Reintentar</button></div>}
+      {error && <Notice tone="danger" action={<button type="button" className="reservation-button reservation-button-secondary" onClick={reload}>Reintentar</button>}>{error}</Notice>}
 
       {!loading && !error && <>
         {/* Filtro de período: una sola fila, arriba de todo lo que afecta */}

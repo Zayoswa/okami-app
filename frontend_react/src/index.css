@@ -12,7 +12,8 @@
   --color-bg: #e9e4da;
   --color-surface: #ffffff;
   --color-surface-muted: #f6f3ed;
-  --color-panel: #f2ede4;     /* paneles del Dashboard, Mi panel, Arriendos y Actividad: papel, no blanco */
+  --color-panel: #f0f0ee;     /* tarjetas y paneles de todos los módulos: blanco opaco neutro (sin tono amarillo) */
+  --color-panel-border: #c8c8c3; /* borde de las tarjetas: gris neutro, marca el contorno sobre el fondo beige */
   --color-highlight: #fffaf0; /* día seleccionado en el calendario */
 
   /* Bordes */
@@ -22,14 +23,14 @@
   /* Texto (todos ≥ 4.5:1 sobre blanco y sobre el fondo) */
   --color-text: #171816;
   --color-text-soft: #3f3b36;
-  --color-muted: #625c54;
+  --color-muted: #57514a;      /* legible sobre piedra (5,2:1) */
   --color-on-dark: #ffffff;
 
   /* Marca */
   --color-dark: #191a18;
   --color-dark-hover: #2b2c29;
   --color-gold: #c28f37;      /* acentos, bordes, focos */
-  --color-gold-text: #7f5714; /* dorado legible como texto */
+  --color-gold-text: #6e4a0f; /* dorado legible como texto, también sobre piedra */
   --color-gold-ring: rgba(194, 143, 55, 0.22); /* halo de foco en campos */
 
   /* Estados */
@@ -44,6 +45,8 @@
   --color-danger: #8a3030;
   --color-danger-bg: #fbe5e5;
   --color-danger-border: #e3b9b9;
+  --color-warning-bg: #f7e7c4;     /* avisos de atención: dorado claro, se nota sobre el papel */
+  --color-warning-border: #dfbf7f;
 
   /* Espacio ocupado ahora (módulo Espacios): fondo naranjo claro, punto naranjo oscuro */
   --color-busy-bg: #ffe4c4;
@@ -176,4 +179,9 @@ p {
 .puesto-tipo-badge--compartido {
   border-color: var(--color-pending-border);
   color: var(--color-pending);
+}
+
+.puesto-tipo-badge--guest {
+  border-color: var(--color-success-border);
+  color: var(--color-success);
 }

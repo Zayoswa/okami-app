@@ -68,6 +68,16 @@ test("Full y Compartido solo admiten a sus titulares; Rotativo a todos", () => {
   assert.equal(puestoBlockReason({ ...rotativo, disponible: false, estado: "Mantenimiento" }, "b"), "Mantenimiento");
 });
 
+test("un puesto Guest no tiene titulares y solo admite tatuadores Guest", () => {
+  const guest = { tipo: "Guest", disponible: true, estado: "Habilitado", titulares: [] };
+  assert.equal(maxTitulares("Guest"), 0);
+  assert.equal(puestoBlockReason(guest, "b", "Guest"), "");
+  assert.equal(puestoBlockReason(guest, "b", "guest"), "");
+  assert.equal(puestoBlockReason(guest, "b", "Rotativo light"), "Solo Guest");
+  assert.equal(puestoBlockReason(guest, "b"), "Solo Guest");
+  assert.equal(puestoBlockReason({ ...guest, disponible: false, estado: "Deshabilitado" }, "b", "Guest"), "Deshabilitado");
+});
+
 test("las sesiones próximas de un puesto excluyen las pasadas, canceladas, completadas y de otros puestos", async () => {
   const { upcomingSessions } = await import("../src/utils/puestos.js");
   const base = { puestoId: "5", estado: "Programada", horaInicio: "10:00", horaFin: "12:00" };

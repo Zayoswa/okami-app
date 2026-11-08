@@ -1,14 +1,17 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { authRequest } from "../services/authService";
 import LoadingScreen from "../components/LoadingScreen";
+import Notice from "../components/Notice";
 import RentKpis from "../components/RentKpis";
 import useAutoRefresh from "../hooks/useAutoRefresh";
 import useConfirm from "../hooks/useConfirm";
 import useModalDialog from "../hooks/useModalDialog";
 import { todayInSantiago } from "../utils/calendar";
 import { formatDate, formatPrice } from "../utils/format";
-import { RENT_STATUS, formatMonth, monthOf, rentDetail, shiftMonth, tariffText } from "../utils/arriendos";
+import {
+  RENT_SORTS, RENT_STATUS, RENT_STATUS_FILTERS, filterRentRows, formatMonth, monthOf, paginate, rentDetail, rentModalities, shiftMonth, tariffText,
+} from "../utils/arriendos";
 import "./Arriendos.css";
 
 // Ventana para registrar un pago del mes. Propone el saldo pendiente y la fecha de hoy.
@@ -52,7 +55,7 @@ function PaymentModal({ fila, mes, onSave, onClose }) {
           {fila.pagado > 0 && <> (ya pagó {formatPrice(fila.pagado)})</>}
         </p>
         {fila.minimo > 0 && fila.pagado < fila.minimo && (
-          <p className="arriendo-modal-hint">El mínimo de {formatPrice(fila.minimo)} se paga a principio de mes.</p>
+          <Notice tone="warning" className="notice--compact">El mínimo de {formatPrice(fila.minimo)} se paga a principio de mes.</Notice>
         )}
         <fieldset className="arriendo-modal-fields" disabled={saving}>
           <label>Monto (CLP)
@@ -66,7 +69,7 @@ function PaymentModal({ fila, mes, onSave, onClose }) {
             <input value={nota} onChange={(event) => setNota(event.target.value)} maxLength={200} placeholder="Transferencia, efectivo…" />
           </label>
         </fieldset>
-        {error && <p className="reservation-form-error" role="alert">{error}</p>}
+        {error && <Notice tone="danger" className="notice--compact">{error}</Notice>}
         <div className="reservation-modal-actions">
           <button type="button" className="reservation-button reservation-button-secondary" onClick={onClose} disabled={saving}>Cancelar</button>
           <button type="submit" className="reservation-button" disabled={saving}>{saving ? "Guardando…" : "Registrar pago"}</button>
@@ -75,6 +78,8 @@ function PaymentModal({ fila, mes, onSave, onClose }) {
     </dialog>
   );
 }
+
+const EMPTY_FILTERS = { q: "", estado: "", modalidad: "", orden: "saldo" };
 
 // Solo admin: arriendo que cada tatuador debe pagar en el mes según su modalidad, lo pagado y el saldo.
 export default function Arriendos() {
@@ -90,6 +95,8 @@ export default function Arriendos() {
   const [message, setMessage] = useState("");
   const [paying, setPaying] = useState(null);
   const [open, setOpen] = useState(() => new Set());
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [page, setPage] = useState(1);
   const [confirm, confirmModal] = useConfirm();
   const currentMonth = monthOf(todayInSantiago());
 
@@ -115,7 +122,19 @@ export default function Arriendos() {
     setLoading(true);
     setMessage("");
     setOpen(new Set());
+    setPage(1);
     setMes(next);
+  }
+
+  // Cambiar un filtro vuelve a la primera página.
+  function updateFilter(field, value) {
+    setFilters((current) => ({ ...current, [field]: value }));
+    setPage(1);
+  }
+
+  function clearFilters() {
+    setFilters(EMPTY_FILTERS);
+    setPage(1);
   }
 
   function toggle(id) {
@@ -151,7 +170,11 @@ export default function Arriendos() {
     }
   }
 
-  const filas = data?.filas ?? [];
+  const filas = useMemo(() => data?.filas ?? [], [data]);
+  const filtradas = useMemo(() => filterRentRows(filas, filters), [filas, filters]);
+  const modalidades = useMemo(() => rentModalities(filas), [filas]);
+  const pagina = paginate(filtradas, page);
+  const hasFilters = Boolean(filters.q.trim() || filters.estado || filters.modalidad || filters.orden !== EMPTY_FILTERS.orden);
   const totales = data?.totales ?? { cargo: 0, pagado: 0, pendiente: 0 };
   const conSaldo = filas.filter((fila) => fila.saldo > 0).length;
   const sinModalidad = filas.filter((fila) => fila.estado === "sin_modalidad").length;
@@ -171,17 +194,41 @@ export default function Arriendos() {
         <button type="button" className="reservation-button reservation-button-secondary" onClick={() => changeMonth(currentMonth)} disabled={mes === currentMonth}>Este mes</button>
       </div>
 
-      {error && <div className="arriendos-alert" role="alert">{error}</div>}
-      {message && <p className="reservation-success" role="status">{message}</p>}
+      {error && <Notice tone="danger">{error}</Notice>}
+      {message && <Notice tone="ok">{message}</Notice>}
 
       {loading ? <LoadingScreen message="Cargando arriendos…" /> : data && <>
         <RentKpis totales={totales} tatuadores={filas.length} conSaldo={conSaldo} />
 
         {sinModalidad > 0 && (
-          <p className="arriendos-notice" role="status">
+          <Notice tone="warning">
             {sinModalidad === 1 ? "1 tatuador no tiene" : `${sinModalidad} tatuadores no tienen`} modalidad: no se le calcula arriendo. Asígnala en Tatuadores.
-          </p>
+          </Notice>
         )}
+
+        <div className="arriendos-filters" role="search" aria-label="Filtrar tatuadores">
+          <label className="arriendos-filter-search">Buscar
+            <input type="search" value={filters.q} onChange={(event) => updateFilter("q", event.target.value)} placeholder="Nombre del tatuador" maxLength={80} />
+          </label>
+          <label>Estado
+            <select value={filters.estado} onChange={(event) => updateFilter("estado", event.target.value)}>
+              {RENT_STATUS_FILTERS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+            </select>
+          </label>
+          <label>Modalidad
+            <select value={filters.modalidad} onChange={(event) => updateFilter("modalidad", event.target.value)}>
+              <option value="">Todas</option>
+              {modalidades.map((item) => <option key={item} value={item}>{item}</option>)}
+              {sinModalidad > 0 && <option value="__none">Sin modalidad</option>}
+            </select>
+          </label>
+          <label>Ordenar
+            <select value={filters.orden} onChange={(event) => updateFilter("orden", event.target.value)}>
+              {RENT_SORTS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+            </select>
+          </label>
+          <button type="button" className="reservation-button reservation-button-secondary" onClick={clearFilters} disabled={!hasFilters}>Limpiar</button>
+        </div>
 
         <div className="arriendos-scroll">
           <table className="arriendos-table">
@@ -198,7 +245,7 @@ export default function Arriendos() {
               </tr>
             </thead>
             <tbody>
-              {filas.map((fila) => {
+              {pagina.items.map((fila) => {
                 const status = RENT_STATUS[fila.estado] ?? RENT_STATUS.pendiente;
                 const expanded = open.has(fila.tatuadorId);
                 return (
@@ -246,12 +293,30 @@ export default function Arriendos() {
                   </Fragment>
                 );
               })}
-              {filas.length === 0 && (
-                <tr><td colSpan={7} className="arriendo-empty">No hay tatuadores con arriendo en {formatMonth(mes)}.</td></tr>
+              {pagina.total === 0 && (
+                <tr><td colSpan={7} className="arriendo-empty">
+                  {filas.length ? "Ningún tatuador coincide con los filtros." : `No hay tatuadores con arriendo en ${formatMonth(mes)}.`}
+                </td></tr>
               )}
             </tbody>
           </table>
         </div>
+
+        {pagina.total > 0 && (
+          <nav className="arriendos-pager" aria-label="Páginas de tatuadores">
+            <p aria-live="polite">
+              {pagina.from}–{pagina.to} de {pagina.total} {pagina.total === 1 ? "tatuador" : "tatuadores"}
+              {filas.length !== pagina.total && ` (filtrados de ${filas.length})`}
+            </p>
+            {pagina.pages > 1 && (
+              <div className="arriendos-pager-buttons">
+                <button type="button" className="reservation-button reservation-button-secondary" onClick={() => setPage(pagina.page - 1)} disabled={pagina.page === 1}>‹ Anterior</button>
+                <span>Página {pagina.page} de {pagina.pages}</span>
+                <button type="button" className="reservation-button reservation-button-secondary" onClick={() => setPage(pagina.page + 1)} disabled={pagina.page === pagina.pages}>Siguiente ›</button>
+              </div>
+            )}
+          </nav>
+        )}
 
         {data.tarifas?.length > 0 && (
           <section className="arriendos-tarifas" aria-labelledby="tarifas-title">

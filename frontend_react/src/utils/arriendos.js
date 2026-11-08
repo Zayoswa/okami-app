@@ -53,3 +53,54 @@ const shortMonth = new Intl.DateTimeFormat("es-CL", { month: "short", timeZone: 
 
 // "2026-11" → "nov"
 export const formatMonthShort = (mes) => shortMonth.format(new Date(`${mes}-15T12:00:00Z`)).replace(".", "");
+
+// ---------- Filtro y páginas de la tabla ----------
+
+export const RENT_PAGE_SIZE = 10;
+
+// Grupos del filtro "Estado": lo que el admin busca al cobrar.
+export const RENT_STATUS_FILTERS = [
+  { id: "", label: "Todos" },
+  { id: "por_cobrar", label: "Por cobrar", estados: ["pendiente", "falta_minimo", "parcial"] },
+  { id: "pagado", label: "Pagados", estados: ["pagado"] },
+  { id: "sin_cargo", label: "Sin cargo", estados: ["sin_cargo"] },
+  { id: "sin_modalidad", label: "Sin modalidad", estados: ["sin_modalidad"] },
+];
+
+export const RENT_SORTS = [
+  { id: "saldo", label: "Mayor saldo primero" },
+  { id: "nombre", label: "Nombre (A–Z)" },
+  { id: "arriendo", label: "Mayor arriendo primero" },
+];
+
+const fold = (value) => String(value ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLocaleLowerCase("es-CL").trim();
+const byName = (a, b) => String(a.tatuador).localeCompare(String(b.tatuador), "es-CL", { sensitivity: "base" });
+
+// Filas que cumplen los filtros, ya ordenadas. "Sin modalidad" en el filtro de modalidad es "__none".
+export function filterRentRows(filas, { q = "", estado = "", modalidad = "", orden = "saldo" } = {}) {
+  const texto = fold(q);
+  const grupo = RENT_STATUS_FILTERS.find((item) => item.id === estado);
+  const result = filas.filter((fila) => {
+    if (texto && !fold(fila.tatuador).includes(texto)) return false;
+    if (grupo?.estados && !grupo.estados.includes(fila.estado)) return false;
+    if (modalidad === "__none" ? fila.modalidad : modalidad && fila.modalidad !== modalidad) return false;
+    return true;
+  });
+  const compare = orden === "nombre" ? byName
+    : orden === "arriendo" ? (a, b) => b.cargo - a.cargo || byName(a, b)
+      : (a, b) => b.saldo - a.saldo || byName(a, b);
+  return result.sort(compare);
+}
+
+// Modalidades presentes en el mes, para el filtro (en orden alfabético).
+export function rentModalities(filas) {
+  return [...new Set(filas.map((fila) => fila.modalidad).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es-CL"));
+}
+
+// Una página de la lista. La página se ajusta si quedó fuera de rango (por ejemplo, tras filtrar).
+export function paginate(items, page, size = RENT_PAGE_SIZE) {
+  const pages = Math.max(1, Math.ceil(items.length / size));
+  const current = Math.min(Math.max(1, page), pages);
+  const start = (current - 1) * size;
+  return { items: items.slice(start, start + size), page: current, pages, from: items.length ? start + 1 : 0, to: Math.min(start + size, items.length), total: items.length };
+}

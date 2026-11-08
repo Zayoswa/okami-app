@@ -10,6 +10,7 @@ import { restoreSession, signOut } from "./services/authService";
 import Invitacion from "./pages/Invitacion";
 import Espacios from "./pages/Espacios";
 
+import Notice from "./components/Notice";
 // Los módulos se cargan bajo demanda; mientras llega su código,
 // el <Suspense> de Dashboard muestra la pantalla de carga.
 const Reservas = lazy(() => import("./pages/Reservas"));
@@ -48,7 +49,7 @@ function App() {
   }
   if (loading) return <LoadingScreen fullScreen message="Comprobando sesión…" />;
   return (
-    <> {error && <p role="alert">{error}</p>}<Routes>
+    <> {error && <Notice tone="danger">{error}</Notice>}<Routes>
       <Route path="/invitacion" element={<Invitacion setUser={setUser} />} />
       <Route path="/login" element={<Login setUser={setUser} />} />
 

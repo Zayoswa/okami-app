@@ -2,6 +2,7 @@ import { use, useEffect, useRef, useState } from "react";
 import { authRequest } from "../services/authService";
 import LoadingScreen from "../components/LoadingScreen";
 import "./Tatuadores.css";
+import Notice from "../components/Notice";
 export default function Tatuadores() {
   const [users, setUsers] = useState([]);
   const [modalities, setModalities] = useState([]);
@@ -56,6 +57,7 @@ export default function Tatuadores() {
   async function register(event){
     event.preventDefault();
 
+<<<<<<< Updated upstream
     setBusy(true)
     setError("");
     setMessage("");
@@ -93,6 +95,11 @@ export default function Tatuadores() {
   return <section className="artists-page"><h1>Tatuadores</h1><p>Invita a las personas autorizadas por el estudio y administra su acceso.</p>
     {error && <p role="alert">{error}</p>}{message && <p role="status">{message}</p>}
     <form onSubmit={register}><h2>Registrar tatuador</h2>
+=======
+  return <section className="artists-page"><h1>Tatuadores</h1><p>Registra a las personas autorizadas por el estudio y administra su acceso y modalidad.</p>
+    {error && <Notice tone="danger">{error}</Notice>}{message && <Notice tone="ok">{message}</Notice>}
+    <form onSubmit={register}><h2>Registrar usuario</h2>
+>>>>>>> Stashed changes
       <label>Nombre<input required maxLength={120} value={nombre} onChange={e => setNombre(e.target.value)} /></label>
       <label>Contraseña <input required minLength={8} value={password} onChange={e => setPassword(e.target.value)} autoComplete="new-password"/> </label>
       <label>Correo<input required type="email" value={email} onChange={e => setEmail(e.target.value)} /></label>

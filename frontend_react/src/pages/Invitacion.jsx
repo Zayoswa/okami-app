@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { acceptInvitation, authRequest, restoreSession } from "../services/authService";
 import { homeForUser } from "../utils/access";
 import "./Login.css";
+import Notice from "../components/Notice";
 export default function Invitacion({ setUser }) {
   const navigate = useNavigate();
   const [ready, setReady] = useState(false);
@@ -28,7 +29,7 @@ export default function Invitacion({ setUser }) {
   }
   return <main className="login-page"><section className="login-card">
     <h1>Bienvenido a Okami</h1><p>Establece tu contraseña para acceder al estudio.</p>
-    {error && <p role="alert">{error}</p>}
+    {error && <Notice tone="danger" className="notice--compact notice--block">{error}</Notice>}
     {ready && <form className="login-form" onSubmit={submit}>
       <label>Contraseña (mínimo 12 caracteres)<input type="password" autoComplete="new-password" minLength={12} maxLength={128} required value={password} onChange={e => setPassword(e.target.value)} /></label>
       <label>Confirmar contraseña<input type="password" autoComplete="new-password" required value={confirmation} onChange={e => setConfirmation(e.target.value)} /></label>

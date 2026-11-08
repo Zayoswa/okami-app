@@ -2,6 +2,7 @@
 //   Full       -> una persona (1 titular fijo)
 //   Compartido -> dos personas (2 titulares fijos)
 //   Rotativo   -> flechas en círculo (lo usa quien lo agende)
+//   Guest      -> estrella (solo tatuadores invitados, modalidad Guest)
 // Los íconos son SVG propios en línea: no requieren instalar ninguna librería.
 
 const ICONS = {
@@ -26,6 +27,9 @@ const ICONS = {
       <path d="M18.5 3v4.5H14" />
       <path d="M5.5 21v-4.5H10" />
     </>
+  ),
+  Guest: (
+    <path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" />
   ),
 };
 

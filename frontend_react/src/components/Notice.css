@@ -1,0 +1,81 @@
+/* Avisos: fondo de color, borde izquierdo marcado y símbolo. */
+
+.notice {
+  --notice-bg: var(--color-warning-bg);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 11px 14px;
+  border: 1px solid var(--color-warning-border);
+  border-left-width: 4px;
+  border-radius: 6px;
+  background: var(--notice-bg);
+  color: var(--color-gold-text);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.notice svg {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 0.5px;
+}
+
+.notice-text {
+  flex: 1;
+  margin: 0;
+  font-weight: 600;
+}
+
+.notice-action {
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.notice-action .reservation-button {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+/* Pantallas de acceso (Login, Invitación): el aviso ocupa el ancho del formulario */
+.notice--block {
+  width: 100%;
+  margin: 10px 0 0;
+  text-align: left;
+}
+
+/* El prefijo solo lo leen los lectores de pantalla: el símbolo ya lo dice a la vista. */
+.notice-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.notice--danger {
+  --notice-bg: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+  border-left-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.notice--warning {
+  border-left-color: var(--color-gold);
+}
+
+.notice--ok {
+  --notice-bg: var(--color-success-bg);
+  border-color: var(--color-success-border);
+  border-left-color: var(--color-success);
+  color: var(--color-success);
+}
+
+/* Dentro de una ventana, sin margen extra abajo del formulario */
+.notice--compact {
+  margin-bottom: 12px;
+  padding: 9px 12px;
+}

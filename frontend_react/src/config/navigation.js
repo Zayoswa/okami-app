@@ -11,14 +11,13 @@ export const navigation = [
   { id: "actividad", path: "/actividad", label: "Actividad", name: "Actividad", description: "Quién hizo qué y cuándo en el estudio", roles: ["admin"] },
   { id: "puestos", path: "/espacios", label: "Espacios", name: "Espacios", description: "Estado, tipo y titulares de los puestos", roles: ["admin"] },
   { id: "alertas", label: "Alertas (Proximamente)", name: "Alertas", comingSoon: true, roles: ["admin", "tatuador"] },
-  { id: "perfil", label: "Perfil (Proximamente)", name: "Perfil", comingSoon: true, roles: ["admin", "tatuador"] },
   { id: "documentacion", label: "Documentacion (Proximamente)", name: "Documentación", comingSoon: true, roles: ["admin"] },
 ];
 
 export function modulesForUser(user) {
   const order = user?.role === "admin"
-    ? ["inicio", "alertas", "dashboard", "arriendos", "calendario", "reservas", "tatuadores", "puestos", "actividad", "perfil", "documentacion"]
-    : ["inicio", "mi-panel", "mis-reservas", "calendario", "alertas", "perfil"];
+    ? ["inicio", "alertas", "dashboard", "arriendos", "calendario", "reservas", "tatuadores", "puestos", "actividad", "documentacion"]
+    : ["inicio", "mi-panel", "mis-reservas", "calendario", "alertas"];
   return order
     .map((id) => navigation.find((module) => module.id === id))
     .filter((module) => module?.roles.includes(user?.role))

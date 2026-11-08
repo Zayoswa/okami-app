@@ -16,6 +16,7 @@ import { puestoNumber } from "../utils/puestos";
 import { reservationStatus } from "../utils/sessions";
 import "./Reservas.css";
 
+import Notice from "../components/Notice";
 const pageSize = 10;
 
 // Reservas (admin, todas) y Mis reservas (tatuador, personal = true).
@@ -125,10 +126,7 @@ export default function Reservas({ user, personal = false }) {
 
       {loading && <LoadingScreen message="Cargando reservas y puestos…" />}
       {error && (
-        <div role="alert">
-          <p>{error}</p>
-          <button type="button" className="reservation-button" onClick={reload}>Reintentar</button>
-        </div>
+        <Notice tone="danger" action={<button type="button" className="reservation-button reservation-button-secondary" onClick={reload}>Reintentar</button>}>{error}</Notice>
       )}
 
       {!loading && !error && <>
@@ -169,10 +167,11 @@ export default function Reservas({ user, personal = false }) {
               const hoy = sesiones.filter((item) => item.puestoId === puesto.id && item.fecha === today && item.estado !== "Cancelada").length;
               return (
                 <article className={`reserva-espacio-card puesto-numero-fondo${puesto.disponible ? "" : " reserva-espacio-full"}`} data-numero={puestoNumber(puesto.nombre)} key={puesto.id}>
-                  <h3>{puesto.nombre}</h3>
-                  <PuestoTipoBadge tipo={puesto.tipo} />
-                  <p>Sesiones hoy</p>
-                  <strong>{hoy}</strong>
+                  <div className="reserva-espacio-head">
+                    <h3>{puesto.nombre}</h3>
+                    <PuestoTipoBadge tipo={puesto.tipo} />
+                  </div>
+                  <p className="reserva-espacio-today">Sesiones hoy <strong>{hoy}</strong></p>
                   <p className="reserva-espacio-availability">{puesto.estado}</p>
                 </article>
               );
@@ -180,7 +179,7 @@ export default function Reservas({ user, personal = false }) {
           </div>
         </section>}
 
-        {message && <p className="reservation-success" role="status">{message}</p>}
+        {message && <Notice tone="ok">{message}</Notice>}
 
         {/* Encima del listado: "Crear reserva" a la izquierda y los filtros a su lado; debajo, el conteo */}
         <div className="reservas-list-header">

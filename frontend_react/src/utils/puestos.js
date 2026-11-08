@@ -23,11 +23,13 @@ export function puestoOccupancy(sesiones, puestoId, fecha, hora) {
   };
 }
 
-// Tipos de puesto: Full y Compartido tienen titulares fijos; Rotativo es para tatuadores de paso o en arriendo.
+// Tipos de puesto: Full y Compartido tienen titulares fijos; Rotativo es para tatuadores de paso o en arriendo;
+// Guest no tiene titulares y es solo para tatuadores con modalidad Guest.
 export const PUESTO_TIPOS = [
   { id: "Full", max: 1, descripcion: "1 titular con modalidad Full" },
   { id: "Compartido", max: 2, descripcion: "2 titulares con modalidad Compartido" },
   { id: "Rotativo", max: 0, descripcion: "sin titulares, para Rotativo, Rotativo light y Guest" },
+  { id: "Guest", max: 0, descripcion: "sin titulares, solo para tatuadores Guest" },
 ];
 
 export function maxTitulares(tipo) {
@@ -45,11 +47,13 @@ export function isTitular(puesto, tatuadorId) {
 }
 
 // Por qué un tatuador no puede agendar una sesión nueva en este puesto, o "" si puede.
-// Full y Compartido son solo para sus titulares; Rotativo está abierto a todos.
-export function puestoBlockReason(puesto, tatuadorId) {
+// Full y Compartido son solo para sus titulares; Guest, solo para la modalidad Guest; Rotativo está abierto a todos.
+// modalidad: nombre de la modalidad del tatuador ("Guest", "Full"...), o vacío si no se conoce.
+export function puestoBlockReason(puesto, tatuadorId, modalidad = "") {
   if (!puesto) return "Selecciona un puesto.";
   if (!puesto.disponible) return puesto.estado;
   if (maxTitulares(puesto.tipo) > 0 && !isTitular(puesto, tatuadorId)) return "Solo titulares";
+  if (puesto.tipo === "Guest" && String(modalidad ?? "").toLowerCase() !== "guest") return "Solo Guest";
   return "";
 }
 
