@@ -20,7 +20,7 @@ load_dotenv(Path(__file__).with_name(".env"))
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5173", "http://127.0.0.1:5174"],
+    allow_origins=["http://localhost:5173","http://localhost:5174","http://127.0.0.1:5173","http://127.0.0.1:5174","http://localhost:8000","http://127.0.0.1:8000"],
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Authorization", "Content-Type"],
 )
@@ -87,8 +87,10 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1, max_length=1024)
 
 class CreateUser(BaseModel):
-    email: str = Field(pattern=r"^[^\s@]+@[^\s@]+\.[^\s@]+$", max_length=254)
+    
     nombre: str = Field(min_length=1, max_length=120)
+    email: str = Field(pattern=r"^[^\s@]+@[^\s@]+\.[^\s@]+$", max_length=254)
+    password: str
     rol: int 
     modalidad: int | None 
     activo: bool = Field(default=False)
@@ -518,19 +520,23 @@ def delete_reservation(reservation_id: UUID, user=Depends(get_current_user)):
     return write_reservation('borrar', reservation_id, None, user)
 
 @app.post("/api/usuarios/")
-def user_create(
-    new_user: CreateUser,
-    admin=Depends(require_admin)
-    ):
-    print("POST REACHED")
+def user_create( new_user: CreateUser, admin=Depends(require_admin)):
+    user_id: None
+    
     try:
-        auth_result = supabase.auth.admin.create_user({
+        db = client(admin=True)
+        print("cocknected as fuck")
+        auth_result = db.auth.admin.create_user({
             "email": new_user.email,
             "password": new_user.password,
             "email_confirm": False
         })
         user_id = auth_result.user.id
+
+        print("bitch made", user_id)
         db = client(admin=True)
+
+        print("Wahooo")
         new_user_in_table = db.table(
             "usuarios"
         ).insert({
@@ -540,7 +546,7 @@ def user_create(
             "nombre": new_user.nombre,
             "activo": new_user.activo
         }).execute()
-
+        print("yippee")
         return {
             "message": "Usuario creado exitosamente",
                 "id": str(user_id),
@@ -550,5 +556,6 @@ def user_create(
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(503, "No se pudo realizar la operación de registro") from exc
+        print(f"Error creando usuario: {exc!r}")
+        raise HTTPException(503, "no se logro crear usuario") from exc
 

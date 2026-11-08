@@ -60,12 +60,11 @@ export default function Tatuadores() {
     setError("");
     setMessage("");
     try{
-      const response =await fetch(
+       const response = await authRequest(
         "/api/usuarios", {
           method:"POST",
           headers: {
-            "Content-Type" : "application/json",
-            "Authorization" : "Bearer $(accessToken)" 
+            "Content-Type" : "application/json", 
           }, 
           body : JSON.stringify({
             nombre: nombre,
@@ -73,7 +72,7 @@ export default function Tatuadores() {
             password: password,
             rol: Number(rol),
             modalidad: modalidad,
-            activo: false
+            activo: true
           })
         }
       );
