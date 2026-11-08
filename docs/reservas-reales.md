@@ -136,9 +136,21 @@ Ejecuta [016_rol_recepcion.sql](../backend-fastapi/migrations/016_rol_recepcion.
 | Rol | Módulos |
 |---|---|
 | **Admin** | Todo: Inicio, Dashboard, Arriendos, Calendario, Reservas, Tatuadores, Espacios, Actividad |
-| **Recepción** | Inicio, Arriendos, Calendario, Tatuadores, Espacios, Actividad. No ve el Dashboard gerencial ni Reservas |
+| **Recepción** | Inicio, Calendario, Tatuadores, Espacios, Actividad. No ve el Dashboard gerencial, Arriendos ni Reservas |
 | **Tatuador** | Inicio, Mi panel, Mis reservas y Calendario |
 
 - Recepción gestiona todas las reservas desde el Calendario (crear, editar, borrar y cerrar sesiones), igual que el admin. La migración 016 hace que `okami_rol_reservas` la trate como admin dentro de las reservas.
-- En el backend, las rutas de gestión usan `require_staff` (admin o recepción). `GET /api/arriendos/historial` sigue siendo solo de admin: lo usa el Dashboard gerencial.
+- En el backend, las rutas de gestión usan `require_staff` (admin o recepción). Las rutas de arriendos (`/api/arriendos`, el historial y los pagos) son solo de admin.
 - Recepción solo puede registrar usuarios **tatuador** (`/api/rol/` solo le ofrece ese rol y el registro rechaza otro con 403), para que no pueda crear admins.
+
+## Peticiones simultáneas
+
+- **Doble reserva:** `okami_guardar_reserva` bloquea las tablas de reservas y sesiones al guardar, así que dos guardados nunca corren a la vez. Si dos personas toman el mismo puesto y horario (o el mismo tatuador en dos puestos), se guarda una y la otra recibe 409 "ya está ocupado".
+- **Ediciones simultáneas:** `GET /api/reservas` entrega una `version` de cada reserva (huella de cliente, RUT, tatuador, precio y sesiones con su estado). El formulario la envía al editar; si la reserva cambió desde que se abrió, el backend responde 409 "Esta reserva cambió mientras la editabas" y no guarda. La comprobación y el guardado van bajo un candado por reserva en Python, que sirve con un solo proceso de FastAPI (uvicorn sin `--workers`).
+- **Prueba:** `backend-fastapi/scripts/prueba_concurrencia.py` lanza peticiones a la vez contra Supabase (doble reserva, carga de 8 peticiones, ediciones simultáneas y formularios viejos) y borra sus datos al terminar.
+
+## Pruebas de seguridad
+
+`backend-fastapi/scripts/prueba_seguridad.py` ataca la API y Supabase como lo haría alguien malintencionado y comprueba que todo se rechaza (47 comprobaciones): acceso directo a Supabase con la clave pública, rutas sin sesión o con token falso, rutas de otro rol, reservas de otro tatuador (IDOR), escalada de privilegios, inyección SQL y textos gigantes, CORS y el registro de actividad inalterable. Solo crea una reserva de prueba y la borra al terminar.
+
+Pendientes que informa como aviso: la API no limita los intentos fallidos de login (solo queda el límite de Supabase Auth) y no envía cabeceras de seguridad (`X-Content-Type-Options`, `X-Frame-Options`, `Content-Security-Policy`, `Strict-Transport-Security`).

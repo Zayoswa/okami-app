@@ -141,6 +141,9 @@ export default function ReservationModal({ puestos, catalogos, user, reserva, se
         tatuadorId,
         precio: price,
         sesiones: sessions,
+        // Versión con la que se abrió el formulario: si otra persona cambió la reserva mientras tanto,
+        // el servidor responde 409 y se muestra el aviso en vez de pisar su cambio.
+        ...(reserva?.version ? { version: reserva.version } : {}),
       });
       onClose();
     } catch (saveError) {

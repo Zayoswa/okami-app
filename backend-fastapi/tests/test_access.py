@@ -356,9 +356,13 @@ class ReceptionTests(unittest.TestCase):
             main.require_staff({'role': 'tatuador'})
         self.assertEqual(ctx.exception.status_code, 403)
 
-    def test_dashboard_history_is_admin_only(self):
+    def test_rent_is_admin_only(self):
         self.as_role('recepcion')
         self.assertEqual(self.api.get('/api/arriendos/historial?hasta=2026-11').status_code, 403)
+        self.assertEqual(self.api.get('/api/arriendos?mes=2026-11').status_code, 403)
+        pago = {'tatuadorId': '11111111-1111-1111-1111-111111111111', 'periodo': '2026-11', 'monto': 1000, 'pagadoEn': '2026-11-02'}
+        self.assertEqual(self.api.post('/api/arriendos/pagos', json=pago).status_code, 403)
+        self.assertEqual(self.api.delete('/api/arriendos/pagos/11111111-1111-1111-1111-111111111111').status_code, 403)
 
     @patch('main.client')
     def test_reception_only_sees_and_registers_artists(self, client):

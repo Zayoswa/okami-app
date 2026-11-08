@@ -1,43 +1,43 @@
-# Okami — Gestión de reservas y puestos
+# Okami — Gestión del estudio
 
-Aplicación web para coordinar las reservas y los puestos de trabajo del estudio de tatuajes Okami. Centraliza la información de las sesiones y facilita la organización del administrador y los tatuadores.
+Aplicación web para gestionar el estudio de tatuajes Okami: reservas, puestos de trabajo, tatuadores y arriendos. Centraliza la información de las sesiones y facilita la organización del administrador, recepción y los tatuadores.
 
-**Estado del proyecto:** acceso y reservas mediante Supabase. Para activar las reservas en una instalación existente, sigue la [guía de reservas reales](docs/reservas-reales.md).
-
-**Configuración del acceso cerrado:** seguir [la guía de activación](docs/acceso-cerrado.md), aplicar la migración revisada y crear al primer administrador antes de probar el login.
+**Estado del proyecto:** acceso, reservas, espacios, arriendos y registro de actividad funcionan con datos reales en Supabase. Para preparar una instalación nueva, aplica las migraciones de `backend-fastapi/migrations` en orden (001 a 016) siguiendo [la guía de acceso cerrado](docs/acceso-cerrado.md) y [la guía de reservas reales](docs/reservas-reales.md), y crea al primer administrador antes de probar el login.
 
 ## Funciones disponibles
 
-- Acceso diferenciado para administrador y tatuador, con cierre de sesión.
-- Creación y edición de reservas mediante formularios en un modal.
-- Eliminación de reservas con un modal de confirmación.
-- Registro de cliente, tatuador, precio total y fecha de creación, con una o más sesiones; cada sesión tiene puesto, fecha, horario y estado.
-- Estados de sesión: Programada (azul), Completada (verde) y Cancelada (rojo). El estado de la reserva se calcula a partir de sus sesiones.
-- Filtros por estado y fecha: hoy, últimos siete días y mes actual.
-- Indicadores de total, completadas, canceladas y pendientes que se actualizan con los filtros.
-- Listado paginado con diez reservas por página.
-- 15 puestos que atienden una sesión a la vez; se valida que no se crucen puestos ni tatuadores.
-- Calendario semanal (lunes a domingo) con sesiones identificadas por tatuador y agenda del día organizada por puestos.
-- Búsqueda y alta automática de clientes dentro de una reserva; cada cliente nuevo requiere un RUT válido, guardado completo en un solo campo. Los clientes no tienen cuentas ni roles.
+- Acceso con cuentas reales de Supabase Auth para tres roles: administrador, recepción y tatuador.
+- Reservas con cliente (nombre y RUT validado), tatuador, precio total y una o más sesiones; cada sesión tiene puesto, fecha, horario y estado.
+- Estados de sesión: Programada (azul), Completada (verde) y Cancelada (rojo). Una reserva nueva siempre queda Programada; el estado se cambia al editar. El estado de la reserva se calcula a partir de sus sesiones.
+- Borrar una reserva la archiva: sus sesiones dejan de ocupar el puesto y se puede restaurar.
+- Validación de choques: un puesto atiende una sesión a la vez y un tatuador no puede estar en dos puestos a la vez, incluso si dos personas guardan al mismo tiempo.
+- Listado de reservas paginado con diez reservas por página e indicadores del mes.
+- Calendario semanal (lunes a domingo) con detalle de cada reserva y agenda del día organizada por puestos.
+- Espacios: estado (habilitado, mantenimiento, deshabilitado), tipo (Full, Compartido, Rotativo, Guest), titulares y quién está ocupando cada puesto en este momento.
+- Tatuadores: registro, activación o desactivación del acceso (conservando sus reservas) y modalidad de arriendo.
+- Arriendos: cálculo del arriendo mensual de cada tatuador según su modalidad, registro de pagos e historial.
+- Dashboard gerencial (admin) y Mi panel (tatuador) con ventas, ganancias, sesiones y arriendo del mes.
+- Actividad: registro de quién hizo qué y cuándo; solo se agregan filas, nadie puede editarlas ni borrarlas.
 
 ### Módulos por rol
 
-| Rol | Disponibles | Próximamente |
+| Rol | Módulos | Próximamente |
 | --- | --- | --- |
-| Administrador | Calendario, Reservas, Tatuadores, Espacios | Alertas, Dashboard Gerencial, Perfil, Documentacion |
-| Tatuador | Mis Reservas, Calendario | Alertas, Perfil |
+| Administrador | Inicio, Dashboard, Arriendos, Calendario, Reservas, Tatuadores, Espacios, Actividad | Alertas, Documentación |
+| Recepción | Inicio, Calendario, Tatuadores, Espacios, Actividad | Alertas, Documentación |
+| Tatuador | Inicio, Mi panel, Mis reservas, Calendario | — |
 
-El administrador puede gestionar todas las reservas. El tatuador puede gestionar sus propias reservas y consultar la organización de los puestos en el calendario. Los módulos marcados como «Proximamente» no abren contenido al pulsarlos.
+El administrador gestiona todo el estudio. Recepción gestiona tatuadores, espacios y todas las reservas desde el Calendario, pero no ve el Dashboard, Arriendos ni el módulo Reservas. El tatuador gestiona solo sus propias reservas; en el calendario ve los horarios ocupados por otros, sin sus clientes ni precios. Los módulos marcados como «Próximamente» no abren contenido al pulsarlos.
 
 ## Tecnologías
 
 | Componente | Tecnologías |
 | --- | --- |
 | Interfaz | React 19, React Router, Vite y CSS |
-| API local | Python, FastAPI y Uvicorn |
-| Datos de prueba | Archivos JSON |
-| Persistencia de reservas | PostgreSQL en Supabase |
-| Verificación | ESLint y pruebas con Node.js |
+| API | Python, FastAPI y Uvicorn |
+| Autenticación | Supabase Auth |
+| Base de datos | PostgreSQL en Supabase |
+| Verificación | ESLint, pruebas con Node.js y pruebas con unittest de Python |
 
 ## Requisitos
 
@@ -116,11 +116,18 @@ npm run dev
 
 ## Acceso de usuarios
 
-No hay registro público. El dueño recibe una cuenta administrativa creada de forma controlada. Desde Tatuadores puede invitar por correo y activar o desactivar el acceso de tatuadores, conservando sus reservas.
+No hay registro público. El administrador crea las cuentas de recepción y tatuadores desde el módulo Tatuadores, y puede activar o desactivar el acceso de un tatuador conservando sus reservas.
 
-El login valida cuentas reales de Supabase Auth. Las antiguas credenciales mockup ya no habilitan acceso. La sesión se conserva en sessionStorage durante la vida de la pestaña, se verifica al recargar y renueva sus tokens cuando es necesario.
+El login valida cuentas reales de Supabase Auth; no existen usuarios de demostración. La sesión se conserva en sessionStorage durante la vida de la pestaña, se verifica al recargar y renueva sus tokens cuando es necesario.
 
-Antes de iniciar, configurar las claves del backend, bloquear el registro público en Supabase, aplicar la migración y configurar las URLs de invitación siguiendo [esta guía](docs/acceso-cerrado.md).
+Antes de iniciar, configurar las claves del backend, bloquear el registro público en Supabase, aplicar las migraciones y configurar las URLs de invitación siguiendo [esta guía](docs/acceso-cerrado.md).
+
+### Seguridad de la API
+
+- Todas las rutas `/api` exigen una sesión válida y revisan el rol en el backend; el frontend solo oculta lo que el rol no puede usar.
+- Límite de intentos de login: después de 5 intentos fallidos con el mismo correo desde el mismo equipo, la API responde 429 durante 15 minutos. Un login correcto reinicia el conteo.
+- Cabeceras de seguridad en todas las respuestas: `X-Content-Type-Options`, `X-Frame-Options`, `Content-Security-Policy`, `Referrer-Policy` y `Strict-Transport-Security`.
+- CORS solo permite los orígenes locales de la app.
 
 ## Configuración de la API
 
@@ -140,31 +147,42 @@ VITE_API_BASE_URL=http://127.0.0.1:8000
 
 El archivo `.env.local` está excluido de Git. Las variables con prefijo `VITE_` son públicas y no deben contener contraseñas ni secretos.
 
-## Datos y reglas de la demostración
+## Reglas del estudio
 
-El estudio tiene 15 puestos (`Puesto 1` a `Puesto 15`). Cada puesto atiende una sesión a la vez y los tatuadores rotan entre ellos. Un puesto en mantenimiento no acepta sesiones nuevas. Las sesiones canceladas no ocupan el puesto.
+Cada puesto atiende una sesión a la vez. Un puesto en mantenimiento o deshabilitado no acepta sesiones nuevas; las ya agendadas se conservan y se pueden completar o cancelar. Las sesiones canceladas no ocupan el puesto.
 
-La agenda, los puestos y las reservas se consultan desde Supabase. Para activar los puestos y las reservas con varias sesiones, ejecutar la migración `007_puestos_y_sesiones.sql` descrita en [Reservas reales](docs/reservas-reales.md).
+| Tipo de puesto | Quién lo agenda |
+| --- | --- |
+| Full | Su titular (1) |
+| Compartido | Sus dos titulares |
+| Rotativo | Cualquier tatuador |
+| Guest | Solo tatuadores con modalidad Guest |
 
-Los clientes son registros del estudio: se pueden buscar por nombre o RUT desde una reserva. Si no existe una coincidencia, el tatuador o administrador puede crearlo al guardar esa misma reserva. Para activar este flujo, ejecutar las migraciones `005` y `006` descrita en [Reservas reales](docs/reservas-reales.md).
+El cliente se guarda dentro de cada reserva (nombre y RUT con dígito verificador); no tiene cuenta ni rol en la app. El arriendo de cada tatuador depende de su modalidad: monto mensual fijo (Full, Compartido), por turno con mínimo mensual (Rotativo, Rotativo light) o por día (Guest).
 
 ## Estructura del proyecto
 
 ```text
 okami-app/
 ├── backend-fastapi/
-│   ├── data/                 # Usuarios de prueba
-│   ├── main.py               # API de inicio de sesión y estado
+│   ├── main.py               # API: acceso, reservas, puestos, tatuadores y seguridad
+│   ├── arriendos.py          # Cálculo del arriendo mensual
+│   ├── actividad.py          # Registro de actividad
+│   ├── migrations/           # Migraciones SQL de Supabase (001 a 016)
+│   ├── scripts/              # Pruebas de seguridad, carga y concurrencia contra la base real
+│   ├── tests/                # Pruebas del backend
 │   └── requirements.txt      # Dependencias de Python
+├── docs/                     # Guías de instalación y diseño de la base de datos
 ├── frontend_react/
 │   ├── src/
 │   │   ├── components/       # Tarjetas, modales, agenda y menú
 │   │   ├── config/           # API y navegación por rol
 │   │   ├── data/             # Catálogos de presentación
 │   │   ├── hooks/            # Estado de reservas y manejo de modales
-│   │   ├── pages/            # Login, reservas y calendario
-│   │   └── utils/            # Filtros, fechas, permisos y capacidad
-│   └── tests/                # Pruebas de lógica de negocio
+│   │   ├── pages/            # Una página por módulo
+│   │   ├── services/         # Llamadas a la API y sesión
+│   │   └── utils/            # Fechas, permisos, RUT, puestos y arriendos
+│   └── tests/                # Pruebas de lógica del frontend
 ├── setup.ps1                 # Instalación local en Windows
 └── start-dev.ps1             # Inicio de frontend y backend
 ```
@@ -178,6 +196,20 @@ npm run lint
 npm test
 ```
 
+Desde `backend-fastapi` (no usan la base real):
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests
+```
+
+Pruebas contra la base real de Supabase, desde `backend-fastapi`. La de seguridad y la de concurrencia crean reservas de prueba y las borran al terminar:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\prueba_seguridad.py
+.\.venv\Scripts\python.exe scripts\prueba_carga.py
+.\.venv\Scripts\python.exe scripts\prueba_concurrencia.py
+```
+
 Para generar la compilación, define la dirección de la API en `.env.local` o en el entorno:
 
 ```powershell
@@ -189,7 +221,8 @@ El resultado se genera en `frontend_react/dist`. Para revisarlo localmente, ejec
 
 ## Alcance pendiente
 
-- Alta y gestión de clientes desde la aplicación.
-- Desarrollo de los módulos marcados como «Proximamente».
+- Módulos Alertas y Documentación.
+- Envío de invitaciones por correo (requiere configurar un servidor SMTP); mientras tanto, las cuentas se crean manualmente desde Tatuadores.
+- Configuración de despliegue: orígenes CORS y HTTPS del servidor final.
 
-Este repositorio presenta el avance funcional del flujo de reservas y la coordinación de puestos; todavía no corresponde a una versión lista para producción.
+Este repositorio presenta el avance funcional de la gestión del estudio; todavía no corresponde a una versión desplegada en producción.

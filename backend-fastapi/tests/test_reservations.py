@@ -245,3 +245,51 @@ class GuestPuestoTests(unittest.TestCase):
         self.assertEqual(response.status_code, 422)
         self.assertIn('puesto Guest', response.json()['detail'])
         rpc.assert_not_called()
+
+
+class ReservationVersionTests(unittest.TestCase):
+    """Ediciones simultáneas: una edición con una versión vieja no pisa el cambio de otra persona."""
+    ACTUAL = {'id': RESERVA, 'cliente': 'Camila Rojas', 'clienteRut': '123456785', 'tatuadorId': ACTOR, 'precio': 45000,
+              'archivadaEn': None, 'sesiones': [{**SESION, 'puestoId': '7'}]}
+
+    def setUp(self):
+        self.api = TestClient(main.app)
+        main.app.dependency_overrides[main.get_current_user] = lambda: {'id': ACTOR, 'role': 'tatuador'}
+        self.addCleanup(main.app.dependency_overrides.clear)
+        for name, value in (('log_event', None), ('guest_rule_data', ({}, None))):
+            patcher = patch(f'main.{name}', return_value=value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def test_version_changes_with_any_editable_field(self):
+        base = main.reservation_version(self.ACTUAL)
+        self.assertEqual(base, main.reservation_version(dict(self.ACTUAL)))
+        self.assertNotEqual(base, main.reservation_version({**self.ACTUAL, 'precio': 50000}))
+        cerrada = {**self.ACTUAL, 'sesiones': [{**SESION, 'puestoId': '7', 'estado': 'Completada'}]}
+        self.assertNotEqual(base, main.reservation_version(cerrada))
+
+    @patch('main.reservation_rpc')
+    def test_listing_includes_the_version(self, rpc):
+        rpc.return_value = [self.ACTUAL]
+        rows = self.api.get('/api/reservas').json()
+        self.assertEqual(rows[0]['version'], main.reservation_version(self.ACTUAL))
+
+    @patch('main.reservation_rpc')
+    @patch('main.reservation_snapshot')
+    def test_stale_edit_is_rejected_without_saving(self, snapshot, rpc):
+        snapshot.return_value = {**self.ACTUAL, 'precio': 99000}  # otra persona cambió el precio
+        body = {k: v for k, v in PAYLOAD.items() if k != 'id'}
+        response = self.api.patch(f'/api/reservas/{RESERVA}', json={**body, 'version': main.reservation_version(self.ACTUAL)})
+        self.assertEqual(response.status_code, 409)
+        self.assertIn('cambió mientras la editabas', response.json()['detail'])
+        rpc.assert_not_called()
+
+    @patch('main.reservation_rpc', return_value=RESERVA)
+    @patch('main.reservation_snapshot')
+    def test_current_version_or_no_version_saves(self, snapshot, rpc):
+        snapshot.return_value = self.ACTUAL
+        body = {k: v for k, v in PAYLOAD.items() if k != 'id'}
+        ok = self.api.patch(f'/api/reservas/{RESERVA}', json={**body, 'version': main.reservation_version(self.ACTUAL)})
+        self.assertEqual(ok.status_code, 200, ok.text)
+        sin_version = self.api.patch(f'/api/reservas/{RESERVA}', json=body)
+        self.assertEqual(sin_version.status_code, 200, sin_version.text)

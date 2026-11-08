@@ -1,10 +1,10 @@
 // Módulos de la app. label: texto del menú lateral; name y description: botón de la página Inicio.
-// Roles: admin (todo), recepcion (gestiona el estudio, sin Dashboard gerencial ni Reservas)
+// Roles: admin (todo), recepcion (gestiona el estudio, sin Dashboard gerencial, Arriendos ni Reservas)
 // y tatuador (su panel, sus reservas y el calendario).
 export const navigation = [
   { id: "inicio", path: "/inicio", label: "Inicio", name: "Inicio", roles: ["admin", "recepcion", "tatuador"] },
   { id: "dashboard", path: "/dashboard", label: "Dashboard", name: "Dashboard", description: "Arriendo del mes, ventas y sesiones por cerrar", roles: ["admin"] },
-  { id: "arriendos", path: "/arriendos", label: "Arriendos", name: "Arriendos", description: "Lo que paga cada tatuador y sus pagos", roles: ["admin", "recepcion"] },
+  { id: "arriendos", path: "/arriendos", label: "Arriendos", name: "Arriendos", description: "Lo que paga cada tatuador y sus pagos", roles: ["admin"] },
   { id: "reservas", path: "/reservas", label: "Reservas", name: "Reservas", description: "Crear, buscar y cerrar reservas", roles: ["admin"] },
   { id: "mi-panel", path: "/mi-panel", label: "Mi panel", name: "Mi panel", description: "Tus ganancias, sesiones y arriendo del mes", roles: ["tatuador"] },
   { id: "mis-reservas", path: "/mis-reservas", label: "Mis reservas", name: "Mis reservas", description: "Tus reservas y sus sesiones", roles: ["tatuador"] },
@@ -18,7 +18,7 @@ export const navigation = [
 
 const ORDER = {
   admin: ["inicio", "alertas", "dashboard", "arriendos", "calendario", "reservas", "tatuadores", "puestos", "actividad", "documentacion"],
-  recepcion: ["inicio", "alertas", "arriendos", "calendario", "tatuadores", "puestos", "actividad", "documentacion"],
+  recepcion: ["inicio", "alertas", "calendario", "tatuadores", "puestos", "actividad", "documentacion"],
   tatuador: ["inicio", "mi-panel", "mis-reservas", "calendario"],
 };
 

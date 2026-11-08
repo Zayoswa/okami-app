@@ -1,6 +1,10 @@
 """API de acceso cerrado y reservas compartidas en Supabase."""
+import hashlib
+import json
 import os
 import re
+import threading
+import time as time_module
 import httpx
 from pathlib import Path
 from datetime import date, time
@@ -8,7 +12,7 @@ from typing import Literal
 from uuid import UUID
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
@@ -29,6 +33,73 @@ app.add_middleware(
 )
 bearer = HTTPBearer(auto_error=False)
 
+# Cabeceras de seguridad en todas las respuestas (también en los errores 401/403/422).
+# La API solo entrega JSON: la CSP no permite cargar nada ni mostrarla dentro de otra página.
+# /docs y /redoc (Swagger) cargan scripts de un CDN, así que ahí no se aplica la CSP.
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "no-referrer",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+}
+API_CSP = "default-src 'none'; frame-ancestors 'none'"
+DOC_PATHS = ("/docs", "/redoc", "/openapi.json")
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    for name, value in SECURITY_HEADERS.items():
+        response.headers.setdefault(name, value)
+    if not request.url.path.startswith(DOC_PATHS):
+        response.headers.setdefault("Content-Security-Policy", API_CSP)
+    return response
+
+
+# Límite de intentos de login: tras LOGIN_MAX_FAILURES fallos seguidos del mismo equipo (IP) con el mismo correo
+# dentro de LOGIN_WINDOW_SECONDS, se responde 429 hasta que pase la ventana. Un login correcto reinicia el conteo.
+# Se cuenta por IP + correo para que un atacante no pueda bloquear la cuenta de otra persona desde otro equipo.
+# Vive en memoria: se reinicia al reiniciar el servidor (suficiente para un solo proceso de uvicorn).
+LOGIN_MAX_FAILURES = 5
+LOGIN_WINDOW_SECONDS = 15 * 60
+_login_failures: dict[tuple[str, str], list[float]] = {}
+_login_lock = threading.Lock()
+
+
+def _login_key(request: Request, email: str):
+    return (request.client.host if request.client else "desconocido", email.strip().lower())
+
+
+def _recent_failures(key, now):
+    attempts = [t for t in _login_failures.get(key, []) if now - t < LOGIN_WINDOW_SECONDS]
+    if attempts:
+        _login_failures[key] = attempts
+    else:
+        _login_failures.pop(key, None)
+    return attempts
+
+
+def check_login_allowed(key):
+    now = time_module.monotonic()
+    with _login_lock:
+        attempts = _recent_failures(key, now)
+        if len(attempts) >= LOGIN_MAX_FAILURES:
+            wait = int(LOGIN_WINDOW_SECONDS - (now - attempts[0])) + 1
+            minutes = max(1, -(-wait // 60))
+            raise HTTPException(429, f"Demasiados intentos fallidos. Espera {minutes} minuto{'s' if minutes != 1 else ''} e intenta nuevamente.",
+                                headers={"Retry-After": str(wait)})
+
+
+def record_login_failure(key):
+    now = time_module.monotonic()
+    with _login_lock:
+        _login_failures[key] = [*_recent_failures(key, now), now]
+
+
+def reset_login_failures(key):
+    with _login_lock:
+        _login_failures.pop(key, None)
+
 
 def client(admin=False):
     key = os.getenv("SUPABASE_SECRET_KEY") if admin else os.getenv("SUPABASE_PUBLISHABLE_KEY")
@@ -41,8 +112,8 @@ def client(admin=False):
     return create_client(os.environ["SUPABASE_URL"], key, options=SyncClientOptions(auto_refresh_token=False, persist_session=False, postgrest_client_timeout=8))
 
 
-# Roles con acceso a la app. Recepción gestiona el estudio (arriendos, tatuadores, espacios, actividad y todas
-# las reservas desde el Calendario), pero no ve el Dashboard gerencial ni el módulo Reservas.
+# Roles con acceso a la app. Recepción gestiona el estudio (tatuadores, espacios, actividad y todas las reservas
+# desde el Calendario), pero no ve el Dashboard gerencial, Arriendos ni el módulo Reservas.
 ROLES = ("admin", "tatuador", "recepcion")
 STAFF = ("admin", "recepcion")
 
@@ -146,6 +217,9 @@ class ReservationSession(BaseModel):
 
 
 class ReservationRequest(BaseModel):
+    # Versión de la reserva cuando se abrió el formulario (la entrega GET /api/reservas). Al editar, si la reserva
+    # cambió desde entonces, se rechaza con 409 en vez de pisar el cambio de otra persona.
+    version: str | None = Field(default=None, max_length=64)
     # El cliente se guarda dentro de la reserva: no hay una ficha de clientes aparte.
     clienteNombre: str = Field(max_length=120)
     # RUT completo con dígito verificador (ej. 11222333-K). Se toleran puntos y espacios por compatibilidad.
@@ -176,7 +250,9 @@ def health():
 
 
 @app.post("/auth/login")
-def login(data: LoginRequest):
+def login(data: LoginRequest, request: Request):
+    key = _login_key(request, data.email)
+    check_login_allowed(key)
     # El acceso requiere Auth y el perfil real; detectar configuración incompleta
     # antes de contactar Auth, sin recurrir a credenciales de demostración.
     client(admin=True)
@@ -187,8 +263,11 @@ def login(data: LoginRequest):
     except httpx.RequestError as exc:
         raise HTTPException(503, "No se pudo conectar con Supabase. Intenta nuevamente.") from exc
     except Exception as exc:
+        record_login_failure(key)
         raise HTTPException(401, "Correo o contraseña incorrectos.") from exc
-    return session_response(result)
+    response = session_response(result)
+    reset_login_failures(key)
+    return response
 
 
 @app.post("/auth/refresh")
@@ -553,9 +632,38 @@ def reservation_rpc(name, params):
         raise HTTPException(503, 'No se pudo comunicar con la base de datos de reservas.') from exc
 
 
+# ---------- Versión de una reserva (ediciones simultáneas) ----------
+# Huella del contenido que se puede editar: si cambia cualquiera de estos datos (también el estado de una sesión),
+# cambia la versión. No necesita columnas nuevas: se calcula sobre lo que devuelve okami_listar_reservas.
+def reservation_version(reserva):
+    sesiones = sorted(
+        ([str(x.get('id')), str(x.get('puestoId')), x.get('fecha'), x.get('horaInicio'), x.get('horaFin'), x.get('estado')]
+         for x in (reserva.get('sesiones') or []) if isinstance(x, dict)), key=lambda item: item[0])
+    contenido = [reserva.get('cliente'), reserva.get('clienteRut'), str(reserva.get('tatuadorId')), reserva.get('precio'),
+                 reserva.get('archivadaEn'), sesiones]
+    return hashlib.sha256(json.dumps(contenido, ensure_ascii=False, default=str).encode()).hexdigest()[:16]
+
+
+# Un candado por reserva: comprobar la versión y guardar ocurren juntos, sin que otra edición se cuele en medio.
+# Sirve con un proceso de FastAPI (uvicorn sin --workers); con varios procesos haría falta llevarlo a la base.
+_locks_guard = threading.Lock()
+_reservation_locks = {}
+
+
+def reservation_lock(reservation_id):
+    with _locks_guard:
+        return _reservation_locks.setdefault(str(reservation_id), threading.Lock())
+
+
+STALE_RESERVATION = 'Esta reserva cambió mientras la editabas (otra persona la modificó). Cierra el formulario para ver los cambios y vuelve a editarla.'
+
+
 @app.get('/api/reservas')
 def list_reservations(user=Depends(get_current_user)):
-    return reservation_rpc('okami_listar_reservas', {'p_actor': user['id']})
+    rows = reservation_rpc('okami_listar_reservas', {'p_actor': user['id']})
+    if not isinstance(rows, list):
+        return rows
+    return [{**row, 'version': reservation_version(row)} if isinstance(row, dict) else row for row in rows]
 
 
 @app.get('/api/reservas/catalogos')
@@ -693,8 +801,18 @@ def guest_rule_data(data):
 
 
 def write_reservation(operation, reservation_id, data, user):
+    if operation == 'crear':
+        return _write_reservation(operation, reservation_id, data, user)
+    with reservation_lock(reservation_id):
+        return _write_reservation(operation, reservation_id, data, user)
+
+
+def _write_reservation(operation, reservation_id, data, user):
     params = {'p_actor': user['id'], 'p_operacion': operation, 'p_id': str(reservation_id)}
     antes = reservation_snapshot(user, reservation_id) if operation != 'crear' else None
+    # Edición con una versión vieja: otra persona la cambió después de abrir el formulario.
+    if operation == 'editar' and data is not None and data.version and antes and reservation_version(antes) != data.version:
+        raise HTTPException(409, STALE_RESERVATION)
     if data is not None:
         error = sessions_error(data.sesiones)
         if error:
@@ -744,6 +862,11 @@ def restore_reservation(reservation_id: UUID, user=Depends(get_current_user)):
 # Cambia el estado de una sola sesión, sin reenviar el resto de la reserva.
 @app.patch('/api/reservas/{reservation_id}/sesiones/{session_id}')
 def change_session_status(reservation_id: UUID, session_id: UUID, data: SessionStatusRequest, user=Depends(get_current_user)):
+    with reservation_lock(reservation_id):
+        return _change_session_status(reservation_id, session_id, data, user)
+
+
+def _change_session_status(reservation_id, session_id, data, user):
     antes = reservation_snapshot(user, reservation_id)
     reservation_rpc('okami_estado_sesion', {'p_actor': user['id'], 'p_reserva': str(reservation_id),
                                             'p_sesion': str(session_id), 'p_estado': data.estado})
@@ -791,7 +914,7 @@ RENT_DB_ERROR = 'No se pudieron cargar los arriendos. Comprueba la migración 01
 
 
 @app.get('/api/arriendos')
-def rent_month(mes: str = Query(pattern=PERIOD_PATTERN), admin=Depends(require_staff)):
+def rent_month(mes: str = Query(pattern=PERIOD_PATTERN), admin=Depends(require_admin)):
     try:
         tatuadores, modalidades, tarifas, historial, pagos = rent_data(client(admin=True), mes, mes)
     except HTTPException:
@@ -847,7 +970,7 @@ class RentPaymentRequest(BaseModel):
 
 
 @app.post('/api/arriendos/pagos', status_code=201)
-def add_rent_payment(data: RentPaymentRequest, admin=Depends(require_staff)):
+def add_rent_payment(data: RentPaymentRequest, admin=Depends(require_admin)):
     try:
         db = client(admin=True)
         users = db.table('usuarios').select('id,nombre,rol').eq('id', str(data.tatuadorId)).execute().data
@@ -871,7 +994,7 @@ def add_rent_payment(data: RentPaymentRequest, admin=Depends(require_staff)):
 
 
 @app.delete('/api/arriendos/pagos/{pago_id}')
-def delete_rent_payment(pago_id: UUID, admin=Depends(require_staff)):
+def delete_rent_payment(pago_id: UUID, admin=Depends(require_admin)):
     try:
         db = client(admin=True)
         deleted = db.table('pagos_arriendo').delete().eq('id', str(pago_id)).execute().data
