@@ -176,7 +176,7 @@ class AccessTests(unittest.TestCase):
     @patch.dict('os.environ', {'INVITE_REDIRECT_URL':'http://localhost:5173/invitacion'})
     @patch('main.client')
     def test_invite_does_not_assign_admin(self, client):
-        main.app.dependency_overrides[main.require_admin] = lambda: {'role':'admin'}
+        main.app.dependency_overrides[main.require_staff] = lambda: {'role':'admin'}
         r = self.api.post('/api/usuarios/invitaciones', json={'nombre':' Artista ', 'email':'artist@example.com','role':'admin'})
         self.assertEqual(r.status_code, 201)
         args = client.return_value.auth.admin.invite_user_by_email.call_args.args
@@ -184,7 +184,7 @@ class AccessTests(unittest.TestCase):
 
     @patch('main.client')
     def test_admin_cannot_disable_other_admin(self, client):
-        main.app.dependency_overrides[main.require_admin] = lambda: {'role':'admin'}
+        main.app.dependency_overrides[main.require_staff] = lambda: {'role':'admin'}
         query = client.return_value.table.return_value.select.return_value.eq.return_value.execute
         query.side_effect = [SimpleNamespace(data=[{'id':'target','rol':1}]), SimpleNamespace(data=[{'nombre':'admin'}])]
         r = self.api.patch('/api/usuarios/11111111-1111-1111-1111-111111111111/actividad', json={'activo':False})
@@ -237,7 +237,7 @@ class AccessTests(unittest.TestCase):
     @patch.dict('os.environ', {'INVITE_REDIRECT_URL':'http://localhost:5173/invitacion'})
     @patch('main.client')
     def test_failed_invitation_is_not_reported_as_success(self, client):
-        main.app.dependency_overrides[main.require_admin] = lambda: {'role':'admin'}
+        main.app.dependency_overrides[main.require_staff] = lambda: {'role':'admin'}
         client.return_value.auth.admin.invite_user_by_email.side_effect = ValueError('SMTP error')
         r = self.api.post('/api/usuarios/invitaciones', json={'nombre':'Artista','email':'a@example.com'})
         self.assertEqual(r.status_code, 400)
@@ -289,8 +289,16 @@ class RegisterTests(unittest.TestCase):
         self.assertEqual(response.status_code, 201, response.text)
         sent = db.auth.admin.create_user.call_args.args[0]
         self.assertEqual((sent['email'], sent['email_confirm'], sent['user_metadata']), ('nuevo@estudio.cl', True, {'nombre': 'Ana Pérez', 'modalidad': 1}))
-        self.tables['usuarios'].update.assert_called_with({'nombre': 'Ana Pérez', 'rol': 2, 'activo': True})
+        self.tables['usuarios'].update.assert_called_with({'nombre': 'Ana Pérez', 'rol': 2, 'modalidad': 1, 'activo': True})
         self.assertIn('Ya puede iniciar sesión', response.json()['message'])
+
+    @patch('main.client')
+    def test_without_the_auth_trigger_the_profile_is_inserted(self, client):
+        # Si se borró el trigger okami_nuevo_usuario, no hay perfil que actualizar: se inserta.
+        self.fake_db(client, created_profile=False)
+        response = self.api.post('/api/usuarios/', json={**self.body, 'activo': True})
+        self.assertEqual(response.status_code, 201, response.text)
+        self.tables['usuarios'].insert.assert_called_with({'id': 'u', 'nombre': 'Ana Pérez', 'rol': 2, 'modalidad': 1, 'activo': True})
 
     @patch('main.client')
     def test_artist_needs_a_modality_and_admin_gets_none(self, client):
@@ -323,3 +331,44 @@ class RegisterTests(unittest.TestCase):
         db.table.side_effect = broken
         self.assertEqual(self.api.post('/api/usuarios/', json=self.body).status_code, 503)
         db.auth.admin.delete_user.assert_called_once_with('u')
+
+
+class ReceptionTests(unittest.TestCase):
+    """Recepción: gestiona el estudio, pero no ve el Dashboard gerencial ni registra admins."""
+
+    def setUp(self):
+        self.api = TestClient(main.app)
+        self.addCleanup(main.app.dependency_overrides.clear)
+
+    def as_role(self, role):
+        main.app.dependency_overrides[main.get_current_user] = lambda: {'id': 'r', 'role': role, 'name': 'Recepción'}
+
+    @patch('main.client')
+    def test_reception_can_sign_in(self, client):
+        query = client.return_value.table.return_value.select.return_value.eq.return_value.execute
+        query.side_effect = [SimpleNamespace(data=[{'id': 'r', 'nombre': 'Ana', 'rol': 2, 'activo': True}]), SimpleNamespace(data=[{'nombre': 'Recepcion'}])]
+        self.assertEqual(main.profile('r'), {'id': 'r', 'name': 'Ana', 'role': 'recepcion'})
+
+    def test_staff_routes_accept_reception_but_not_artists(self):
+        self.assertEqual(main.require_staff({'role': 'recepcion'})['role'], 'recepcion')
+        self.assertEqual(main.require_staff({'role': 'admin'})['role'], 'admin')
+        with self.assertRaises(main.HTTPException) as ctx:
+            main.require_staff({'role': 'tatuador'})
+        self.assertEqual(ctx.exception.status_code, 403)
+
+    def test_dashboard_history_is_admin_only(self):
+        self.as_role('recepcion')
+        self.assertEqual(self.api.get('/api/arriendos/historial?hasta=2026-11').status_code, 403)
+
+    @patch('main.client')
+    def test_reception_only_sees_and_registers_artists(self, client):
+        db = client.return_value
+        rows = [{'id': 1, 'nombre': 'tatuador'}, {'id': 2, 'nombre': 'recepcion'}, {'id': 3, 'nombre': 'admin'}]
+        db.table.return_value.select.return_value.execute.return_value = SimpleNamespace(data=rows)
+        self.as_role('recepcion')
+        self.assertEqual(self.api.get('/api/rol/').json(), [{'id': 1, 'nombre': 'tatuador'}])
+        body = {'email': 'x@okami.cl', 'nombre': 'X', 'password': 'una-clave-segura', 'rol': 3}
+        self.assertEqual(self.api.post('/api/usuarios/', json=body).status_code, 403)
+        db.auth.admin.create_user.assert_not_called()
+        self.as_role('admin')
+        self.assertEqual(len(self.api.get('/api/rol/').json()), 3)

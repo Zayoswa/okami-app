@@ -139,10 +139,20 @@
 
 /* ---------- Tarjetas de gráficos ---------- */
 
+/* Cada tarjeta mide lo que su contenido: no se estira para igualar a la vecina más larga */
 .gerencial-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
   gap: 16px;
+}
+
+/* Columna derecha del Dashboard: modalidad, uso de puestos y sesiones, una debajo de otra,
+   al lado de Cobro por tatuador (que crece con la cantidad de tatuadores) */
+.gerencial-stack {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
 }
 
 .chart-card {
@@ -323,23 +333,27 @@
 
 /* ---------- Barras horizontales ---------- */
 
+/* La columna de nombres mide lo que el nombre más largo ("Rotativo light (2)"): cada barra ocupa una sola línea */
 .bar-list {
   display: grid;
-  gap: 6px;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  align-items: center;
+  gap: 6px 10px;
   margin: 0;
   padding: 0;
   list-style: none;
-}
-
-.bar-list-row {
-  display: grid;
-  grid-template-columns: 76px minmax(0, 1fr);
-  align-items: center;
-  gap: 10px;
   font-size: 12px;
 }
 
+.bar-list-row {
+  display: contents;
+}
+
 .bar-list-label {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--color-text-soft);
 }
 

@@ -76,7 +76,6 @@ export default function Calendario({ user }) {
 
   return (
     <div className="calendar-page">
-      <p className="dashboard-label">CALENDARIO</p>
       <h1>Calendario del estudio</h1>
       <p className="dashboard-description">Organiza las sesiones de la semana por día, horario y puesto. {user?.role === "tatuador" ? "Puedes editar tus propias reservas." : "Selecciona una reserva para editarla."}</p>
       <div className="calendar-toolbar">

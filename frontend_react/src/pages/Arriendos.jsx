@@ -181,7 +181,6 @@ export default function Arriendos() {
 
   return (
     <section className="arriendos-page">
-      <p className="dashboard-label">ARRIENDOS</p>
       <h1>Arriendos</h1>
       <p className="dashboard-description">
         Lo que cada tatuador paga al estudio en el mes según su modalidad. Los turnos y días se cuentan con las sesiones no canceladas del mes.

@@ -38,7 +38,6 @@ export default function Inicio({ user }) {
 
   return (
     <section className="inicio-page">
-      <p className="dashboard-label">INICIO</p>
       <h1>Hola{nombre ? `, ${nombre}` : ""}</h1>
       <p className="dashboard-description inicio-date">{formatFullDate(todayInSantiago())}</p>
 

@@ -13,4 +13,6 @@ test("el tatuador accede a sus reservas y el admin administra todas", () => {
   assert.equal(ownsReservation(artist, { tatuadorId: 3, tatuador: "Bruno Toro" }), false);
   assert.ok(canManageReservation({ role: "admin" }, { tatuadorId: 3 }));
   assert.equal(canManageReservation(null, {}), false);
+  assert.ok(canManageReservation({ role: "recepcion" }, { tatuadorId: 3 }));
+  assert.equal(homeForUser({ role: "recepcion" }), "/inicio");
 });

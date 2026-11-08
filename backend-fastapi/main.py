@@ -41,6 +41,12 @@ def client(admin=False):
     return create_client(os.environ["SUPABASE_URL"], key, options=SyncClientOptions(auto_refresh_token=False, persist_session=False, postgrest_client_timeout=8))
 
 
+# Roles con acceso a la app. Recepción gestiona el estudio (arriendos, tatuadores, espacios, actividad y todas
+# las reservas desde el Calendario), pero no ve el Dashboard gerencial ni el módulo Reservas.
+ROLES = ("admin", "tatuador", "recepcion")
+STAFF = ("admin", "recepcion")
+
+
 def profile(user_id):
     try:
         db = client(admin=True)
@@ -52,7 +58,7 @@ def profile(user_id):
         row = rows[0]
         roles = db.table("rol").select("nombre").eq("id", row["rol"]).execute().data
         role = roles[0]["nombre"].strip().lower() if roles else ""
-        if role not in ("admin", "tatuador"):
+        if role not in ROLES:
             raise HTTPException(403, "El usuario no tiene un rol autorizado.")
         return {"id": row["id"], "name": row["nombre"], "role": role}
     except HTTPException:
@@ -85,19 +91,29 @@ def require_admin(user=Depends(get_current_user)):
     return user
 
 
+# Gestión del estudio: admin o recepción.
+def require_staff(user=Depends(get_current_user)):
+    if user["role"] not in STAFF:
+        raise HTTPException(403, "Esta operación requiere un administrador o recepción.")
+    return user
+
+
 class LoginRequest(BaseModel):
     email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=1, max_length=1024)
 
 # Registro manual (sin correo de invitación, mientras no haya un servidor SMTP).
+# Registro manual (sin correo de invitación, mientras no haya un servidor SMTP).
 class CreateUser(BaseModel):
-    
     nombre: str = Field(min_length=1, max_length=120)
     email: str = Field(pattern=r"^[^\s@]+@[^\s@]+\.[^\s@]+$", max_length=254)
     password: str = Field(min_length=8, max_length=128)
-    rol: int 
-    modalidad: int 
-    activo: bool = Field(default=True)
+    rol: int = Field(gt=0)
+    # Solo los tatuadores tienen modalidad (define su arriendo); para un admin se ignora.
+    modalidad: int | None = Field(default=None, gt=0)
+    # Se acepta por compatibilidad con el formulario, pero una cuenta nueva siempre queda activa.
+    activo: bool = True
+
 
 class SessionRequest(BaseModel):
     refresh_token: str = Field(min_length=1)
@@ -217,7 +233,7 @@ def password(data: PasswordRequest, jwt: str = Depends(token), user=Depends(get_
 
 
 @app.get("/api/usuarios/")
-def users(admin=Depends(require_admin)):
+def users(admin=Depends(require_staff)):
     try:
         db = client(admin=True)
         rows = db.table("usuarios").select("id,nombre,rol,modalidad,activo,creado_en").order("nombre").execute().data
@@ -230,7 +246,7 @@ def users(admin=Depends(require_admin)):
 
 
 @app.get("/api/modalidad/")
-def modalities(user=Depends(require_admin)):
+def modalities(user=Depends(require_staff)):
     try:
         return client(admin=True).table("modalidad").select("id,nombre").execute().data
     except HTTPException:
@@ -239,9 +255,11 @@ def modalities(user=Depends(require_admin)):
         raise HTTPException(503, "No se pudieron consultar las modalidades.") from exc
 
 @app.get("/api/rol/")
-def roles(user=Depends(require_admin)):
+def roles(user=Depends(require_staff)):
     try:
-        return client(admin=True).table("rol").select("id,nombre").execute().data
+        rows = client(admin=True).table("rol").select("id,nombre").execute().data
+        # Recepción solo puede registrar tatuadores: no se le ofrecen los demás roles.
+        return rows if user["role"] == "admin" else [row for row in rows if row["nombre"].strip().lower() == "tatuador"]
     except HTTPException:
         raise
     except Exception as exc:
@@ -327,7 +345,7 @@ def puestos(user=Depends(get_current_user)):
 
 
 @app.get("/api/puestos/estados")
-def puesto_states(admin=Depends(require_admin)):
+def puesto_states(admin=Depends(require_staff)):
     try:
         return client(admin=True).table("puesto_estados").select("id,estado").order("id").execute().data
     except HTTPException:
@@ -344,7 +362,7 @@ class PuestoUpdateRequest(BaseModel):
 # Las sesiones ya agendadas se conservan: un puesto en mantenimiento solo rechaza sesiones nuevas o movidas.
 # Cambiar el tipo falla (409) si el puesto queda con más titulares de los que permite el nuevo tipo.
 @app.patch("/api/puestos/{puesto_id}")
-def update_puesto(puesto_id: int, data: PuestoUpdateRequest, admin=Depends(require_admin)):
+def update_puesto(puesto_id: int, data: PuestoUpdateRequest, admin=Depends(require_staff)):
     changes = {}
     if data.estadoId is not None:
         changes["estado_id"] = data.estadoId
@@ -391,7 +409,7 @@ class TitularRequest(BaseModel):
 
 
 @app.post("/api/puestos/{puesto_id}/titulares", status_code=201)
-def add_titular(puesto_id: int, data: TitularRequest, admin=Depends(require_admin)):
+def add_titular(puesto_id: int, data: TitularRequest, admin=Depends(require_staff)):
     tatuador = str(data.tatuadorId)
     try:
         db = client(admin=True)
@@ -428,7 +446,7 @@ def add_titular(puesto_id: int, data: TitularRequest, admin=Depends(require_admi
 
 
 @app.delete("/api/puestos/{puesto_id}/titulares/{tatuador_id}")
-def remove_titular(puesto_id: int, tatuador_id: UUID, admin=Depends(require_admin)):
+def remove_titular(puesto_id: int, tatuador_id: UUID, admin=Depends(require_staff)):
     try:
         db = client(admin=True)
         deleted = db.table("puesto_titulares").delete().eq("puesto", puesto_id).eq("tatuador", str(tatuador_id)).execute().data
@@ -445,7 +463,7 @@ def remove_titular(puesto_id: int, tatuador_id: UUID, admin=Depends(require_admi
 
 
 @app.post("/api/usuarios/invitaciones", status_code=201)
-def invite(data: InviteRequest, admin=Depends(require_admin)):
+def invite(data: InviteRequest, admin=Depends(require_staff)):
     nombre = data.nombre.strip()
     if not nombre:
         raise HTTPException(422, "El nombre es obligatorio.")
@@ -467,7 +485,7 @@ def invite(data: InviteRequest, admin=Depends(require_admin)):
 
 
 @app.patch("/api/usuarios/{user_id}/actividad")
-def activity(user_id: UUID, data: ActiveRequest, admin=Depends(require_admin)):
+def activity(user_id: UUID, data: ActiveRequest, admin=Depends(require_staff)):
     db = client(admin=True)
     rows = db.table("usuarios").select("id,nombre,rol,activo").eq("id", str(user_id)).execute().data
     if not rows:
@@ -488,7 +506,7 @@ class ModalityRequest(BaseModel):
 
 # Cambia la modalidad (y con ella el arriendo) desde el mes actual. Un titular conserva la de su puesto.
 @app.patch("/api/usuarios/{user_id}/modalidad")
-def change_modality(user_id: UUID, data: ModalityRequest, admin=Depends(require_admin)):
+def change_modality(user_id: UUID, data: ModalityRequest, admin=Depends(require_staff)):
     try:
         db = client(admin=True)
         rows = db.table("usuarios").select("id,nombre,rol,modalidad").eq("id", str(user_id)).execute().data
@@ -773,7 +791,7 @@ RENT_DB_ERROR = 'No se pudieron cargar los arriendos. Comprueba la migración 01
 
 
 @app.get('/api/arriendos')
-def rent_month(mes: str = Query(pattern=PERIOD_PATTERN), admin=Depends(require_admin)):
+def rent_month(mes: str = Query(pattern=PERIOD_PATTERN), admin=Depends(require_staff)):
     try:
         tatuadores, modalidades, tarifas, historial, pagos = rent_data(client(admin=True), mes, mes)
     except HTTPException:
@@ -829,7 +847,7 @@ class RentPaymentRequest(BaseModel):
 
 
 @app.post('/api/arriendos/pagos', status_code=201)
-def add_rent_payment(data: RentPaymentRequest, admin=Depends(require_admin)):
+def add_rent_payment(data: RentPaymentRequest, admin=Depends(require_staff)):
     try:
         db = client(admin=True)
         users = db.table('usuarios').select('id,nombre,rol').eq('id', str(data.tatuadorId)).execute().data
@@ -853,7 +871,7 @@ def add_rent_payment(data: RentPaymentRequest, admin=Depends(require_admin)):
 
 
 @app.delete('/api/arriendos/pagos/{pago_id}')
-def delete_rent_payment(pago_id: UUID, admin=Depends(require_admin)):
+def delete_rent_payment(pago_id: UUID, admin=Depends(require_staff)):
     try:
         db = client(admin=True)
         deleted = db.table('pagos_arriendo').delete().eq('id', str(pago_id)).execute().data
@@ -882,7 +900,7 @@ def activity_log(
     q: str | None = Query(default=None, max_length=80),
     antes: int | None = Query(default=None, gt=0),
     limite: int = Query(default=50, ge=1, le=100),
-    admin=Depends(require_admin),
+    admin=Depends(require_staff),
 ):
     """Registros del más nuevo al más antiguo. `antes` es el id del último registro ya mostrado (página siguiente)."""
     try:
@@ -909,45 +927,60 @@ def activity_log(
         raise HTTPException(503, 'No se pudo cargar la actividad. Comprueba la migración 014 en Supabase.') from exc
     return {'registros': rows[:limite], 'hayMas': len(rows) > limite}
 
-# ---------- Registro manual de usuarios (commit "Registro") ----------
-# Crea la cuenta en Auth con el correo ya confirmado, para que pueda entrar de inmediato con esa contraseña.
-# El trigger de la migración 001 crea su perfil en usuarios (como tatuador, activo y con la modalidad
-# de los metadatos); después se ajustan el nombre y el rol elegido. Si el perfil falla, se borra la cuenta.
-@app.post("/api/usuarios/")
-def user_create( new_user: CreateUser, admin=Depends(require_admin)):
-    user_id: None
+# ---------- Registro manual de usuarios ----------
+# Crea la cuenta en Auth con el correo ya confirmado, para que pueda entrar de inmediato con esa contraseña,
+# y deja su perfil en usuarios con el nombre, rol y modalidad elegidos.
+# Funciona con o sin el trigger okami_nuevo_usuario (migración 001): si el trigger ya creó el perfil, se actualiza;
+# si no existe, se inserta. Si el perfil falla, se borra la cuenta de Auth para no dejarla a medias.
+@app.post("/api/usuarios/", status_code=201)
+def user_create(new_user: CreateUser, admin=Depends(require_staff)):
+    nombre = " ".join(new_user.nombre.split())
+    email = new_user.email.strip().lower()
+    if not nombre:
+        raise HTTPException(422, "El nombre es obligatorio.")
+    db = client(admin=True)
     try:
-        db = client(admin=True)
-        print("cocknected as fuck")
-        auth_result = db.auth.admin.create_user({
-            "email": new_user.email,
-            "password": new_user.password,
-            "email_confirm": True
-        })
-        user_id = auth_result.user.id
-
-        print("bitch made", user_id)
-        db = client(admin=True)
-
-        print("Wahooo")
-        new_user_in_table = db.table(
-            "usuarios"
-        ).insert({
-            "id": str(user_id),
-            "rol":  new_user.rol,
-            "modalidad": new_user.modalidad,
-            "nombre": new_user.nombre,
-            "activo": new_user.activo
-        }).execute()
-        print("yippee")
-        return {
-            "message": "Usuario creado exitosamente",
-                "id": str(user_id),
-                "rol": new_user.rol,
-                "modalidad": new_user.modalidad
-                }
-    except HTTPException:
-        raise
+        roles = {r["id"]: r["nombre"].strip().lower() for r in db.table("rol").select("id,nombre").execute().data}
+        modalidades = modality_names(db)
     except Exception as exc:
-        print(f"Error creando usuario: {exc!r}")
-        raise HTTPException(503, "no se logro crear usuario") from exc
+        raise HTTPException(503, "No se pudieron consultar los roles y modalidades.") from exc
+    rol = roles.get(new_user.rol)
+    if rol not in ROLES:
+        raise HTTPException(422, "Selecciona un rol válido.")
+    if admin["role"] != "admin" and rol != "tatuador":
+        raise HTTPException(403, "Recepción solo puede registrar tatuadores.")
+    modalidad = new_user.modalidad if rol == "tatuador" else None
+    if rol == "tatuador" and modalidad is None:
+        raise HTTPException(422, "Selecciona la modalidad del tatuador.")
+    if modalidad is not None and modalidad not in modalidades:
+        raise HTTPException(422, "Selecciona una modalidad válida.")
+    try:
+        auth_result = db.auth.admin.create_user({
+            "email": email,
+            "password": new_user.password,
+            "email_confirm": True,
+            "user_metadata": {"nombre": nombre, "modalidad": modalidad},
+        })
+    except Exception as exc:
+        text = str(exc).lower()
+        if "already" in text or "registered" in text or "exists" in text:
+            raise HTTPException(409, "Ya existe una cuenta con ese correo.") from exc
+        if "password" in text:
+            raise HTTPException(422, "La contraseña no cumple los requisitos de seguridad.") from exc
+        raise HTTPException(400, "No se pudo crear la cuenta. Revisa el correo y la contraseña.") from exc
+    user_id = str(auth_result.user.id)
+    try:
+        perfil = {"nombre": nombre, "rol": new_user.rol, "modalidad": modalidad, "activo": True}
+        updated = db.table("usuarios").update(perfil).eq("id", user_id).execute().data
+        if not updated:
+            db.table("usuarios").insert({"id": user_id, **perfil}).execute()
+    except Exception as exc:
+        try:
+            db.auth.admin.delete_user(user_id)
+        except Exception:  # noqa: BLE001 - se informa el error original
+            pass
+        raise HTTPException(503, "No se pudo crear el perfil del usuario. No se guardó nada; intenta nuevamente.") from exc
+    log_event(admin, "tatuador", "registro",
+              f"Registró a {nombre} ({email}) como {rol}" + (f" con modalidad {modalidades.get(modalidad)}." if modalidad else "."), user_id)
+    return {"message": f"{nombre} quedó registrado como {rol}. Ya puede iniciar sesión con su correo y contraseña.",
+            "id": user_id, "rol": new_user.rol, "modalidad": modalidad}

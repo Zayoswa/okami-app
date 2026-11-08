@@ -143,7 +143,6 @@ export default function Actividad() {
 
   return (
     <section className="actividad-page">
-      <p className="dashboard-label">ACTIVIDAD</p>
       <h1>Actividad del estudio</h1>
       <p className="dashboard-description">
         Todo lo que se hace en la app: quién lo hizo, qué cambió y cuándo. El registro no se puede editar ni borrar.
@@ -162,7 +161,7 @@ export default function Actividad() {
         <label>Persona
           <select value={filters.actor} onChange={(event) => updateFilter("actor", event.target.value)}>
             <option value="">Todas</option>
-            {usuarios.map((item) => <option key={item.id} value={item.id}>{item.nombre}{item.role === "admin" ? " (admin)" : ""}</option>)}
+            {usuarios.map((item) => <option key={item.id} value={item.id}>{item.nombre}{item.role === "admin" ? " (admin)" : item.role === "recepcion" ? " (recepción)" : ""}</option>)}
           </select>
         </label>
         <label>Desde

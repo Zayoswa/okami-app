@@ -52,7 +52,6 @@ export default function MiPanel({ user }) {
 
   return (
     <section className="gerencial-page">
-      <p className="dashboard-label">MI PANEL</p>
       <h1>{nombre ? `Panel de ${nombre}` : "Mi panel"}</h1>
       <p className="dashboard-description">
         Tus ganancias cuentan las sesiones <strong>completadas</strong>: el precio de cada reserva se reparte entre sus sesiones no canceladas.

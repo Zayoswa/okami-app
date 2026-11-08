@@ -77,7 +77,7 @@ Ejecuta [012_cliente_en_reserva_e_historial.sql](../backend-fastapi/migrations/0
 
 - **Cliente dentro de la reserva:** no hay una ficha ni un buscador de clientes. El formulario pide el nombre (solo letras) y el RUT, y ambos se guardan en la reserva (`reservas.cliente_nombre` y `reservas.cliente_rut`). La migración copia esos datos desde la tabla `cliente`, que queda intacta pero la app ya no usa.
 - **Buscar reservas por cliente:** el buscador de Reservas acepta el nombre del cliente o del tatuador, o el RUT, con o sin puntos y guion (por ejemplo `12.345.678-5`, `12345678` o `678-5`).
-- **Historial:** "Borrar" ya no elimina. La reserva pasa a la pestaña **Historial** de Reservas: deja de ocupar el puesto y la agenda del tatuador, y no aparece en el Calendario ni en Espacios. Solo la ven el admin y su tatuador. **Restaurar** la devuelve a la agenda, salvo que una de sus sesiones choque con otra reserva.
+- **Borrar archiva:** "Borrar" no elimina la fila; la reserva queda archivada (`archivada_en`): deja de ocupar el puesto y la agenda del tatuador, y no aparece en el Calendario ni en Espacios. La pestaña Historial se quitó de la app, así que una reserva borrada ya no se ve ni se restaura desde la interfaz; el endpoint `POST /api/reservas/{id}/restaurar` sigue existiendo.
 - **Ganancias:** las sesiones completadas de una reserva borrada siguen contando en las ganancias y el ranking del Dashboard. Sus sesiones programadas ya no cuentan como "por cobrar".
 - **Cambiar el estado de una sesión** usa `PATCH /api/reservas/{id}/sesiones/{sesion}` (función `okami_estado_sesion`), sin reenviar la reserva completa. Así también se pueden cerrar sesiones de un tatuador desactivado. Volver a activar una sesión cancelada revisa que el puesto y el tatuador sigan libres.
 - **Sesiones por cerrar:** en el Dashboard, cada sesión que ya terminó y sigue Programada tiene botones **Completada** y **Cancelada**. En el Calendario, el detalle de una sesión también permite cambiar su estado.
@@ -128,3 +128,17 @@ Ejecuta [014_registro_actividad.sql](../backend-fastapi/migrations/014_registro_
 - **Nunca bloquea una acción:** si guardar el registro falla, el cambio del usuario se mantiene y el error queda en el log del servidor.
 - **Módulo Actividad** (solo admin): línea de tiempo por día, con filtros por tipo, persona, fechas y texto, y "Cargar más". Usa `GET /api/actividad`.
 - Los resúmenes se arman en [actividad.py](../backend-fastapi/actividad.py), con tests en `tests/test_actividad.py`.
+
+## Roles: admin, recepción y tatuador
+
+Ejecuta [016_rol_recepcion.sql](../backend-fastapi/migrations/016_rol_recepcion.sql) después de 015. No borra datos.
+
+| Rol | Módulos |
+|---|---|
+| **Admin** | Todo: Inicio, Dashboard, Arriendos, Calendario, Reservas, Tatuadores, Espacios, Actividad |
+| **Recepción** | Inicio, Arriendos, Calendario, Tatuadores, Espacios, Actividad. No ve el Dashboard gerencial ni Reservas |
+| **Tatuador** | Inicio, Mi panel, Mis reservas y Calendario |
+
+- Recepción gestiona todas las reservas desde el Calendario (crear, editar, borrar y cerrar sesiones), igual que el admin. La migración 016 hace que `okami_rol_reservas` la trate como admin dentro de las reservas.
+- En el backend, las rutas de gestión usan `require_staff` (admin o recepción). `GET /api/arriendos/historial` sigue siendo solo de admin: lo usa el Dashboard gerencial.
+- Recepción solo puede registrar usuarios **tatuador** (`/api/rol/` solo le ofrece ese rol y el registro rechaza otro con 403), para que no pueda crear admins.

@@ -195,7 +195,6 @@ export default function Espacios({ user }) {
 
   return (
     <section className="espacios-page">
-      <p className="dashboard-label">ESPACIOS</p>
       <h1>Espacios</h1>
       <p className="dashboard-description">
         Cambia el estado de cada espacio. Uno que no está Habilitado no acepta sesiones nuevas; las sesiones ya agendadas se conservan y se pueden completar o cancelar.

@@ -36,8 +36,8 @@ export default function DeleteReservationModal({ reserva, onConfirm, onClose }) 
         {total > 0 && <> y {total === 1 ? <>su <strong>sesión</strong></> : <>sus <strong>{total} sesiones</strong></>} ({primera === ultima ? `el ${formatDate(primera)}` : `del ${formatDate(primera)} al ${formatDate(ultima)}`})</>}?
       </p>
       <p className="reservation-modal-description">
-        La reserva pasa al <strong>Historial</strong>: deja de ocupar el puesto y la agenda, pero se conserva con sus datos
-        y se puede restaurar. Si tenía sesiones completadas, siguen contando en las ganancias. Para quitar solo una sesión, edita la reserva.
+        La reserva deja de ocupar el puesto y la agenda. Si tenía sesiones completadas, siguen contando en las ganancias.
+        Para quitar solo una sesión, edita la reserva.
       </p>
       {error && <Notice tone="danger" className="notice--compact">{error}</Notice>}
       <div className="reservation-modal-actions">

@@ -1,4 +1,4 @@
-import { use, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { authRequest } from "../services/authService";
 import LoadingScreen from "../components/LoadingScreen";
 import "./Tatuadores.css";
@@ -32,18 +32,6 @@ export default function Tatuadores() {
   useEffect(() => {
     Promise.resolve().then(load).catch(cause => setError(cause.message)).finally(() => setLoading(false));
   }, []);
-  async function invite(event) {
-    event.preventDefault();
-    if (busy) return;
-    setBusy(true); setError(""); setMessage("");
-    try {
-      await authRequest("/api/usuarios/invitaciones", { method: "POST", body: JSON.stringify({ nombre: nombre.trim(), email: email.trim(), modalidad: modalidad ? Number(modalidad) : null }) });
-      setMessage("Invitación enviada. El tatuador recibirá un enlace para establecer su contraseña.");
-      setNombre(""); setEmail(""); setModalidad("");
-      try { await load(); } catch { setError("La invitación se envió, pero no se pudo actualizar el listado. Recarga la página."); }
-    } catch (cause) { setError(cause.message); }
-    finally { setBusy(false); }
-  }
   async function toggle() {
     if (busy) return;
     setBusy(true); setError(""); setMessage("");
@@ -54,52 +42,34 @@ export default function Tatuadores() {
     } catch (cause) { setError(cause.message); }
     finally { setBusy(false); }
   }
-  async function register(event){
+  // Registro manual: crea la cuenta con la contraseña indicada (POST /api/usuarios/).
+  // authRequest ya devuelve el JSON de la respuesta y lanza un Error con el detalle si falla.
+  async function register(event) {
     event.preventDefault();
-
-<<<<<<< Updated upstream
-    setBusy(true)
-    setError("");
-    setMessage("");
-    try{
-       const response = await authRequest(
-        "/api/usuarios/", {
-          method:"POST",
-          headers: {
-            "Content-Type" : "application/json", 
-          }, 
-          body : JSON.stringify({
-            nombre: nombre,
-            email: email,
-            password: password,
-            rol: Number(rol),
-            modalidad: modalidad,
-            activo: true
-          })
-        }
-      );
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error (
-          data.detail || "Error al registrar usuario"
-        );
-      }
+    if (busy) return;
+    setBusy(true); setError(""); setMessage("");
+    try {
+      const data = await authRequest("/api/usuarios/", {
+        method: "POST",
+        body: JSON.stringify({
+          nombre: nombre.trim(),
+          email: email.trim(),
+          password,
+          rol: Number(rol),
+          modalidad: modalidad ? Number(modalidad) : null,
+          activo: true,
+        }),
+      });
       setMessage(data.message);
-    } catch(err){
-        setError(err.message);
-    } finally {
-        setBusy(false);
-    }
-  };
+      setNombre(""); setEmail(""); setPassword(""); setRol(""); setModalidad("");
+      try { await load(); } catch { setError("El usuario se registró, pero no se pudo actualizar el listado. Recarga la página."); }
+    } catch (cause) { setError(cause.message); }
+    finally { setBusy(false); }
+  }
 
-  return <section className="artists-page"><h1>Tatuadores</h1><p>Invita a las personas autorizadas por el estudio y administra su acceso.</p>
-    {error && <p role="alert">{error}</p>}{message && <p role="status">{message}</p>}
-    <form onSubmit={register}><h2>Registrar tatuador</h2>
-=======
   return <section className="artists-page"><h1>Tatuadores</h1><p>Registra a las personas autorizadas por el estudio y administra su acceso y modalidad.</p>
     {error && <Notice tone="danger">{error}</Notice>}{message && <Notice tone="ok">{message}</Notice>}
     <form onSubmit={register}><h2>Registrar usuario</h2>
->>>>>>> Stashed changes
       <label>Nombre<input required maxLength={120} value={nombre} onChange={e => setNombre(e.target.value)} /></label>
       <label>Contraseña <input required minLength={8} value={password} onChange={e => setPassword(e.target.value)} autoComplete="new-password"/> </label>
       <label>Correo<input required type="email" value={email} onChange={e => setEmail(e.target.value)} /></label>

@@ -93,7 +93,6 @@ export default function Gerencial({ user }) {
 
   return (
     <section className="gerencial-page">
-      <p className="dashboard-label">DASHBOARD</p>
       <h1>Dashboard gerencial</h1>
       <p className="dashboard-description">
         El arriendo que pagan los tatuadores según su modalidad es el ingreso principal del estudio.
@@ -159,6 +158,8 @@ export default function Gerencial({ user }) {
             {rent.data ? <RentByArtist filas={filas} /> : !rent.error && <p className="gerencial-empty">Cargando…</p>}
           </article>
 
+          {/* Columna derecha: las tarjetas chicas apiladas junto a Cobro por tatuador, sin dejar huecos */}
+          <div className="gerencial-stack">
           <article className="chart-card">
             <header>
               <h2>Arriendo por modalidad</h2>
@@ -207,6 +208,7 @@ export default function Gerencial({ user }) {
             </header>
             <SessionList items={proximas} empty="No hay sesiones programadas en los próximos 7 días." />
           </article>
+          </div>
         </div>
 
         {/* Ventas: referencia, al final y compacto. Cada tatuador ve las suyas en detalle en "Mi panel". */}
