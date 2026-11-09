@@ -4,12 +4,12 @@ La API (FastAPI) y la interfaz (React) se publican en [Render](https://render.co
 
 La configuración está en [`render.yaml`](../render.yaml). Cada push a la rama configurada (`dev`) vuelve a desplegar ambos servicios.
 
-| Servicio | Tipo en Render | Carpeta | URL esperada |
+| Servicio | Tipo en Render | Carpeta | URL publicada |
 | --- | --- | --- | --- |
-| `okami-api` | Web Service (Python) | `backend-fastapi` | `https://okami-api.onrender.com` |
+| `okami-api` | Web Service (Python) | `backend-fastapi` | `https://okami-api-6gaj.onrender.com` |
 | `okami-app` | Static Site | `frontend_react` | `https://okami-app.onrender.com` |
 
-Si Render asigna otros nombres, usar las URLs reales en todos los pasos.
+Render agregó el sufijo `-6gaj` al nombre de la API. Si se vuelven a crear los servicios y cambian los nombres, usar las URLs reales en todos los pasos.
 
 ## Opción A: crear todo desde el Blueprint
 
@@ -62,10 +62,10 @@ Sin esto, los correos de invitación siguen llevando a localhost.
 
 ## Verificación
 
-1. `https://okami-api.onrender.com/health` responde un JSON.
+1. `https://okami-api-6gaj.onrender.com/health` responde un JSON.
 2. La app abre en `https://okami-app.onrender.com` y se puede iniciar sesión.
 3. Recargar con F5 en `/calendario` no da 404.
-4. En F12 → Red, las peticiones van a `okami-api.onrender.com` (no a `127.0.0.1`) y no aparece *blocked by CORS policy* en la consola.
+4. En F12 → Red, las peticiones van a `okami-api-6gaj.onrender.com` (no a `127.0.0.1`) y no aparece *blocked by CORS policy* en la consola.
 
 ## Problemas frecuentes
 

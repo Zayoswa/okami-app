@@ -8,6 +8,9 @@ import "./Login.css";
 
 
 import Notice from "../components/Notice";
+import PasswordInput from "../components/PasswordInput";
+
+
 export default function Login({ setUser }) {
     const navigate = useNavigate();
     const [email, setEmail] = useState("");
@@ -58,11 +61,11 @@ export default function Login({ setUser }) {
                 required
             />
 
-            <input
-                type="password"
+            <PasswordInput
                 placeholder="Contraseña"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
                 required
             />
 

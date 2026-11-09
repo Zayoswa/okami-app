@@ -4,6 +4,7 @@ import { acceptInvitation, authRequest, restoreSession } from "../services/authS
 import { homeForUser } from "../utils/access";
 import "./Login.css";
 import Notice from "../components/Notice";
+import PasswordInput from "../components/PasswordInput";
 export default function Invitacion({ setUser }) {
   const navigate = useNavigate();
   const [ready, setReady] = useState(false);
@@ -31,8 +32,8 @@ export default function Invitacion({ setUser }) {
     <h1>Bienvenido a Okami</h1><p>Establece tu contraseña para acceder al estudio.</p>
     {error && <Notice tone="danger" className="notice--compact notice--block">{error}</Notice>}
     {ready && <form className="login-form" onSubmit={submit}>
-      <label>Contraseña (mínimo 12 caracteres)<input type="password" autoComplete="new-password" minLength={12} maxLength={128} required value={password} onChange={e => setPassword(e.target.value)} /></label>
-      <label>Confirmar contraseña<input type="password" autoComplete="new-password" required value={confirmation} onChange={e => setConfirmation(e.target.value)} /></label>
+      <label>Contraseña (mínimo 12 caracteres)<PasswordInput autoComplete="new-password" minLength={12} maxLength={128} required value={password} onChange={e => setPassword(e.target.value)} /></label>
+      <label>Confirmar contraseña<PasswordInput autoComplete="new-password" required value={confirmation} onChange={e => setConfirmation(e.target.value)} /></label>
       <button disabled={busy}>{busy ? "Guardando…" : "Guardar y entrar"}</button>
     </form>}
   </section></main>;

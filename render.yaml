@@ -43,7 +43,7 @@ services:
     envVars:
       # Vite la incrusta al compilar: si cambia, hay que volver a desplegar el frontend.
       - key: VITE_API_BASE_URL # URL pública de la API, sin "/" final
-        value: https://okami-api.onrender.com
+        value: https://okami-api-6gaj.onrender.com
     headers:
       - path: /*
         name: X-Frame-Options

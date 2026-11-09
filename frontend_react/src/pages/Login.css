@@ -184,3 +184,53 @@
     max-width: 100%;
   }
 }
+
+/* =========================
+   CONTRASEÑA CON OJO
+========================= */
+
+.login-password {
+  position: relative;
+}
+
+.login-form .login-password input {
+  padding-right: 42px;
+}
+
+.login-form .login-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+
+  border: none;
+  border-radius: 6px;
+
+  background: transparent;
+  color: #6f6962;
+
+  cursor: pointer;
+}
+
+.login-form .login-password-toggle:hover {
+  background-color: #f1efeb;
+  color: #222222;
+}
+
+.login-form .login-password-toggle:active {
+  transform: translateY(-50%);
+}
+
+.login-form .login-password-toggle:focus-visible {
+  outline: 2px solid #d6a64b;
+  outline-offset: 1px;
+}
