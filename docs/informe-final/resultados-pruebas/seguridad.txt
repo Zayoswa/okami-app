@@ -1,0 +1,68 @@
+Tatuadores de prueba: Chico (dueño) y Jaimito (otro) · admin: Bax
+
+1) Supabase directo con la clave pública (sin pasar por la API)
+  OK    no puede leer usuarios (rechazado: 42501)
+  OK    no puede leer reservas (rechazado: 42501)
+  OK    no puede leer reserva_sesiones (rechazado: 42501)
+  OK    no puede leer pagos_arriendo (rechazado: 42501)
+  OK    no puede leer registro_actividad (rechazado: 42501)
+  OK    no puede leer modalidad_historial (rechazado: 42501)
+  OK    no puede leer puesto_titulares (rechazado: 42501)
+  OK    no puede leer rol (sin filas)
+  OK    no puede leer puesto (sin filas)
+  OK    no puede leer modalidad (sin filas)
+  OK    no puede leer modalidad_tarifas (rechazado: 42501)
+  OK    no puede escribir en reservas (rechazado: 42501)
+  OK    no puede escribir en pagos_arriendo (rechazado: 42501)
+  OK    no puede escribir en registro_actividad (rechazado: 42501)
+  OK    no puede escribir en usuarios (rechazado: 42501)
+  OK    no puede hacerse admin cambiando su rol (rechazado: 42501)
+  OK    no puede ejecutar okami_listar_reservas haciéndose pasar por el admin (rechazado: 42501)
+  OK    no puede ejecutar okami_guardar_reserva haciéndose pasar por el admin (rechazado: 42501)
+  OK    no puede ejecutar okami_rol_reservas haciéndose pasar por el admin (rechazado: 42501)
+
+2) API sin sesión o con un token inventado
+  OK    las 25 rutas /api piden sesión (401 sin token y con token falso) 
+  OK    /auth/me sin sesión -> 401 
+
+3) Rutas de otro rol
+  OK    un tatuador no entra a ninguna ruta de gestión 
+  OK    un tatuador sí ve su propio arriendo 
+  OK    recepción no entra a arriendos ni pagos 
+
+4) Reservas de otro tatuador
+  OK    el dueño crea su reserva de prueba ({"id":"25dd7b64-11b7-474f-a2df-3f434f71096e"})
+  OK    otro tatuador ve el horario ocupado, pero no el cliente, el RUT ni el precio (['archivadaEn', 'fechaCreacion', 'id', 'sesiones', 'tatuador', 'tatuadorId', 'version'])
+  OK    otro tatuador no puede editarla (403)
+  OK    otro tatuador no puede borrarla (403)
+  OK    otro tatuador no puede cancelar su sesión (403)
+  OK    la reserva sigue intacta 
+  OK    un tatuador no puede crear reservas a nombre de otro (403)
+
+5) Escalada de privilegios
+  OK    recepción no puede crear un admin (403)
+  OK    no se creó ninguna cuenta 
+  OK    mandar p_actor, role o user en el cuerpo no da permisos (403)
+
+6) Inyección SQL y textos gigantes
+  OK    un nombre con SQL se rechaza (solo letras) (El nombre del cliente solo puede tener letras, espacios, guiones o apóstrofos.)
+  OK    un nombre con HTML/JS se rechaza (El nombre del cliente solo puede tener letras. Si escribiste el RUT, ingrésalo en el campo RUT.)
+  OK    un nombre de 5.000 letras se rechaza 
+  OK    un precio negativo se rechaza 
+  OK    el buscador de Actividad aguanta "%' OR 1=1 --" (200)
+  OK    el buscador de Actividad aguanta 'x),or(id.gt.0' (200)
+  OK    el buscador de Actividad aguanta "'; DELETE FROM registro_" (200)
+  OK    el buscador de Actividad aguanta '************************' (422)
+  OK    la tabla reservas sigue existiendo 
+
+7) CORS y registro de actividad
+  OK    un sitio ajeno no recibe permiso CORS 
+  OK    la app (localhost:5173) sí lo recibe 
+  OK    ni el backend puede editar el registro de actividad (rechazado: 42501)
+  OK    ni el backend puede borrar el registro de actividad (rechazado: 42501)
+
+8) Para revisar (no fallan la prueba)
+
+Limpieza: 1 reservas de prueba borradas.
+
+Resultado: 47/47 comprobaciones OK · 0 avisos

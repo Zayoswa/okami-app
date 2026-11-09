@@ -5,6 +5,7 @@ import os
 import re
 import threading
 import time as time_module
+from concurrent.futures import ThreadPoolExecutor
 import httpx
 from pathlib import Path
 from datetime import date, time
@@ -116,6 +117,9 @@ def reset_login_failures(key):
         _login_failures.pop(key, None)
 
 
+_admin_clients = threading.local()
+
+
 def client(admin=False):
     key = os.getenv("SUPABASE_SECRET_KEY") if admin else os.getenv("SUPABASE_PUBLISHABLE_KEY")
     if not os.getenv("SUPABASE_URL"):
@@ -123,8 +127,28 @@ def client(admin=False):
     if not key:
         variable = "SUPABASE_SECRET_KEY" if admin else "SUPABASE_PUBLISHABLE_KEY"
         raise HTTPException(503, f"Falta configurar {variable} en backend-fastapi/.env. Contacta al administrador.")
-    # Un cliente por operación: nunca compartir sesiones de distintos usuarios.
-    return create_client(os.environ["SUPABASE_URL"], key, options=SyncClientOptions(auto_refresh_token=False, persist_session=False, postgrest_client_timeout=8))
+    options = SyncClientOptions(auto_refresh_token=False, persist_session=False, postgrest_client_timeout=8)
+    if not admin:
+        # Cliente público: uno por operación, porque iniciar o renovar sesión la guarda en el cliente
+        # y nunca se deben compartir sesiones de distintos usuarios.
+        return create_client(os.environ["SUPABASE_URL"], key, options=options)
+    # Cliente con la clave secreta: no guarda la sesión de nadie (solo consultas y auth.admin), así que se reutiliza.
+    # Así las peticiones aprovechan la conexión HTTPS ya abierta con Supabase en vez de abrir una nueva cada vez.
+    # Uno por hilo: la conexión es HTTP/2 y compartirla entre hilos falla con httpx.ReadError bajo carga.
+    if getattr(_admin_clients, "db", None) is None:
+        _admin_clients.db = create_client(os.environ["SUPABASE_URL"], key, options=options)
+    return _admin_clients.db
+
+
+# Hilos para lanzar a la vez consultas independientes a Supabase (cada una es un viaje de red).
+# Las tareas que corren aquí nunca esperan a otras tareas de este mismo grupo, así que no se pueden trabar.
+_queries = ThreadPoolExecutor(max_workers=32, thread_name_prefix="supabase")
+
+
+def parallel(*tareas):
+    """Ejecuta funciones independientes al mismo tiempo y devuelve sus resultados en el mismo orden."""
+    futuros = [_queries.submit(tarea) for tarea in tareas]
+    return [futuro.result() for futuro in futuros]
 
 
 # Roles con acceso a la app. Recepción gestiona el estudio (tatuadores, espacios, actividad y todas las reservas
@@ -748,11 +772,14 @@ def reservation_catalogs(user=Depends(get_current_user)):
             modalidad = modality_names(db).get(own[0]['modalidad']) if own and own[0].get('modalidad') else None
             artists = [{'id': user['id'], 'nombre': user['name'], 'modalidad': modalidad}]
         else:
-            role_ids = [row['id'] for row in db.table('rol').select('id,nombre').execute().data
-                        if row['nombre'].strip().lower() == 'tatuador']
-            artists = db.table('usuarios').select('id,nombre,modalidad').in_('rol', role_ids).eq('activo', True).order('nombre').execute().data if role_ids else []
-            names = modality_names(db)
-            artists = [{'id': a['id'], 'nombre': a['nombre'], 'modalidad': names.get(a['modalidad'])} for a in artists]
+            # Roles, usuarios activos y modalidades a la vez; el filtro por rol tatuador se hace aquí.
+            roles, activos, names = parallel(
+                lambda: client(admin=True).table('rol').select('id,nombre').execute().data,
+                lambda: client(admin=True).table('usuarios').select('id,nombre,modalidad,rol').eq('activo', True).order('nombre').execute().data,
+                lambda: modality_names(client(admin=True)),
+            )
+            role_ids = {row['id'] for row in roles if row['nombre'].strip().lower() == 'tatuador'}
+            artists = [{'id': a['id'], 'nombre': a['nombre'], 'modalidad': names.get(a['modalidad'])} for a in activos if a['rol'] in role_ids]
         return {'tatuadores': artists}
     except HTTPException:
         raise
@@ -965,19 +992,44 @@ def _change_session_status(reservation_id, session_id, data, user):
 PERIOD_PATTERN = r'^\d{4}-(0[1-9]|1[0-2])$'
 
 
-def rent_data(db, desde, hasta, tatuador=None):
+def rent_data(desde, hasta, tatuador=None):
     """Datos para calcular el arriendo: tatuadores, modalidades, tarifas, historial y pagos entre dos meses.
-    Con `tatuador`, solo los de esa persona."""
-    roles = {r['id']: r['nombre'].strip().lower() for r in db.table('rol').select('id,nombre').execute().data}
-    users = db.table('usuarios').select('id,nombre,rol,activo,creado_en').execute().data
+    Con `tatuador`, solo los de esa persona. Cada consulta corre en su hilo con su propio cliente (ver client)."""
+    def db():
+        return client(admin=True)
+
+    def historial_query():
+        query = db().table('modalidad_historial').select('tatuador,desde,modalidad')
+        return (query.eq('tatuador', tatuador) if tatuador else query).execute().data
+
+    def pagos_query():
+        query = (db().table('pagos_arriendo').select('id,tatuador,periodo,monto,pagado_en,nota')
+                 .gte('periodo', arriendos.month_start(desde)).lte('periodo', arriendos.month_start(hasta)))
+        return (query.eq('tatuador', tatuador) if tatuador else query).execute().data
+
+    # Las seis consultas no dependen entre sí: van a la vez, en el tiempo de la más lenta.
+    roles, users, tarifas, historial, pagos, modalidades = parallel(
+        lambda: {r['id']: r['nombre'].strip().lower() for r in db().table('rol').select('id,nombre').execute().data},
+        lambda: db().table('usuarios').select('id,nombre,rol,activo,creado_en').execute().data,
+        lambda: db().table('modalidad_tarifas').select('modalidad,vigente_desde,cobro,monto,minimo_mensual,monto_reducido,dias_reducido').execute().data,
+        historial_query,
+        pagos_query,
+        lambda: modality_names(db()),
+    )
     tatuadores = [u for u in users if roles.get(u['rol']) == 'tatuador' and (tatuador is None or str(u['id']) == tatuador)]
-    tarifas = db.table('modalidad_tarifas').select('modalidad,vigente_desde,cobro,monto,minimo_mensual,monto_reducido,dias_reducido').execute().data
-    query = db.table('modalidad_historial').select('tatuador,desde,modalidad')
-    historial = (query.eq('tatuador', tatuador) if tatuador else query).execute().data
-    query = (db.table('pagos_arriendo').select('id,tatuador,periodo,monto,pagado_en,nota')
-             .gte('periodo', arriendos.month_start(desde)).lte('periodo', arriendos.month_start(hasta)))
-    pagos = (query.eq('tatuador', tatuador) if tatuador else query).execute().data
-    return tatuadores, modality_names(db), tarifas, historial, pagos
+    return tatuadores, modalidades, tarifas, historial, pagos
+
+
+def rent_with_reservations(desde, hasta, actor_id, tatuador=None):
+    """rent_data y la lista de reservas (para contar turnos y días), pedidas a la vez."""
+    reservas = _queries.submit(reservation_rpc, 'okami_listar_reservas', {'p_actor': actor_id})
+    try:
+        datos = rent_data(desde, hasta, tatuador=tatuador)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(503, RENT_DB_ERROR) from exc
+    return (*datos, reservas.result())
 
 
 def tariffs_in_force(modalidades, tarifas, inicio):
@@ -996,13 +1048,7 @@ RENT_DB_ERROR = 'No se pudieron cargar los arriendos. Comprueba la migración 01
 
 @app.get('/api/arriendos')
 def rent_month(mes: str = Query(pattern=PERIOD_PATTERN), admin=Depends(require_admin)):
-    try:
-        tatuadores, modalidades, tarifas, historial, pagos = rent_data(client(admin=True), mes, mes)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(503, RENT_DB_ERROR) from exc
-    reservas = reservation_rpc('okami_listar_reservas', {'p_actor': admin['id']})
+    tatuadores, modalidades, tarifas, historial, pagos, reservas = rent_with_reservations(mes, mes, admin['id'])
     result = arriendos.resumen_mes(mes, tatuadores, modalidades, tarifas, historial, reservas, pagos)
     result['tarifas'] = tariffs_in_force(modalidades, tarifas, arriendos.month_start(mes))
     return result
@@ -1012,13 +1058,7 @@ def rent_month(mes: str = Query(pattern=PERIOD_PATTERN), admin=Depends(require_a
 @app.get('/api/arriendos/historial')
 def rent_history(hasta: str = Query(pattern=PERIOD_PATTERN), meses: int = Query(default=6, ge=1, le=24), admin=Depends(require_admin)):
     desde = arriendos.shift_month(hasta, -(meses - 1))
-    try:
-        tatuadores, modalidades, tarifas, historial, pagos = rent_data(client(admin=True), desde, hasta)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(503, RENT_DB_ERROR) from exc
-    reservas = reservation_rpc('okami_listar_reservas', {'p_actor': admin['id']})
+    tatuadores, modalidades, tarifas, historial, pagos, reservas = rent_with_reservations(desde, hasta, admin['id'])
     return arriendos.historial_meses(hasta, meses, tatuadores, modalidades, tarifas, historial, reservas, pagos)
 
 
@@ -1027,13 +1067,7 @@ def rent_history(hasta: str = Query(pattern=PERIOD_PATTERN), meses: int = Query(
 def my_rent(mes: str = Query(pattern=PERIOD_PATTERN), user=Depends(get_current_user)):
     if user['role'] != 'tatuador':
         raise HTTPException(403, 'Solo los tatuadores tienen arriendo propio.')
-    try:
-        tatuadores, modalidades, tarifas, historial, pagos = rent_data(client(admin=True), mes, mes, tatuador=str(user['id']))
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(503, RENT_DB_ERROR) from exc
-    reservas = reservation_rpc('okami_listar_reservas', {'p_actor': user['id']})
+    tatuadores, modalidades, tarifas, historial, pagos, reservas = rent_with_reservations(mes, mes, user['id'], tatuador=str(user['id']))
     filas = arriendos.resumen_mes(mes, tatuadores, modalidades, tarifas, historial, reservas, pagos)['filas']
     fila = filas[0] if filas else None
     if fila:

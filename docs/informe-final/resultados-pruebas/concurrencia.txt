@@ -1,0 +1,47 @@
+Tatuadores: Chico, Jaimito, Mcfry, McNugget · Puestos: Puesto 10, Puesto 9, Puesto 5 · Fecha 2031-02-03
+
+1) Dos tatuadores reservan el mismo puesto y horario al mismo tiempo (5 rondas)
+  OK    ronda 1: solo una se guarda y la otra recibe "ocupado" (✗ 409: Puesto 10 ya está ocupado el 03-02-2031 entre 08:00 y 09:00. 455 ms | ✓ guardada 804 ms)
+  OK    ronda 1: en la base queda una sola sesión en ese horario 
+  OK    ronda 2: solo una se guarda y la otra recibe "ocupado" (✗ 409: Puesto 10 ya está ocupado el 03-02-2031 entre 09:00 y 10:00. 431 ms | ✓ guardada 772 ms)
+  OK    ronda 2: en la base queda una sola sesión en ese horario 
+  OK    ronda 3: solo una se guarda y la otra recibe "ocupado" (✗ 409: Puesto 10 ya está ocupado el 03-02-2031 entre 10:00 y 11:00. 429 ms | ✓ guardada 722 ms)
+  OK    ronda 3: en la base queda una sola sesión en ese horario 
+  OK    ronda 4: solo una se guarda y la otra recibe "ocupado" (✓ guardada 748 ms | ✗ 409: Puesto 10 ya está ocupado el 03-02-2031 entre 11:00 y 12:00. 431 ms)
+  OK    ronda 4: en la base queda una sola sesión en ese horario 
+  OK    ronda 5: solo una se guarda y la otra recibe "ocupado" (✗ 409: Puesto 10 ya está ocupado el 03-02-2031 entre 12:00 y 13:00. 408 ms | ✓ guardada 723 ms)
+  OK    ronda 5: en la base queda una sola sesión en ese horario 
+
+2) El mismo tatuador reserva dos puestos distintos a la misma hora, a la vez (3 rondas)
+  OK    ronda 1: solo una se guarda (no puede estar en dos puestos) (✓ guardada 773 ms | ✗ 409: El tatuador ya tiene otra sesión el 03-02-2031 entre 14:00 y 15:00. 462 ms)
+  OK    ronda 1: en la base el tatuador tiene una sola sesión a esa hora 
+  OK    ronda 2: solo una se guarda (no puede estar en dos puestos) (✗ 409: El tatuador ya tiene otra sesión el 03-02-2031 entre 15:00 y 16:00. 395 ms | ✓ guardada 722 ms)
+  OK    ronda 2: en la base el tatuador tiene una sola sesión a esa hora 
+  OK    ronda 3: solo una se guarda (no puede estar en dos puestos) (✓ guardada 734 ms | ✗ 409: El tatuador ya tiene otra sesión el 03-02-2031 entre 16:00 y 17:00. 392 ms)
+  OK    ronda 3: en la base el tatuador tiene una sola sesión a esa hora 
+
+3) Carga: 4 tatuadores × 2 peticiones = 8 peticiones al mismo puesto y horario
+  OK    solo 1 de 8 se guarda (1 guardadas)
+  OK    ninguna falla con un error inesperado (todas son "guardada" u "ocupado") 
+  OK    en la base queda una sola sesión 
+     tiempos: el más rápido 386 ms, el más lento 737 ms
+
+4) Dos tatuadores reservan puestos distintos a la misma hora (no chocan)
+  OK    las dos se guardan (el bloqueo no rechaza reservas válidas) (✓ guardada 753 ms | ✓ guardada 834 ms)
+
+5) Dos personas abren la misma reserva y guardan al mismo tiempo (3 rondas)
+  OK    ronda 1: se guarda una y la otra recibe "cambió mientras la editabas" (✗ 409: Esta reserva cambió mientras la editabas (otra persona la modificó). Cierra el formulario para ver los cambios y vuelve a editarla. 1466 ms | ✓ guardada 1073 ms)
+  OK    ronda 1: la reserva queda con el precio de la edición que se guardó (precio final $22.222)
+  OK    ronda 2: se guarda una y la otra recibe "cambió mientras la editabas" (✗ 409: Esta reserva cambió mientras la editabas (otra persona la modificó). Cierra el formulario para ver los cambios y vuelve a editarla. 1549 ms | ✓ guardada 1145 ms)
+  OK    ronda 2: la reserva queda con el precio de la edición que se guardó (precio final $22.222)
+  OK    ronda 3: se guarda una y la otra recibe "cambió mientras la editabas" (✗ 409: Esta reserva cambió mientras la editabas (otra persona la modificó). Cierra el formulario para ver los cambios y vuelve a editarla. 1673 ms | ✓ guardada 1209 ms)
+  OK    ronda 3: la reserva queda con el precio de la edición que se guardó (precio final $22.222)
+
+6) Alguien guarda un formulario desactualizado (otra persona cambió la reserva antes)
+  OK    el formulario viejo se rechaza (✗ 409: Esta reserva cambió mientras la editabas (otra persona la modificó). Cierra el formulario para ver los cambios y vuelve a editarla. 384 ms)
+  OK    se conserva el cambio de la otra persona (precio final $15.000)
+  OK    al reabrir el formulario (versión nueva) sí se guarda (✓ guardada 1082 ms)
+
+Limpieza: 15 reservas de prueba borradas, quedan 0.
+
+Resultado: 29/29 comprobaciones OK
