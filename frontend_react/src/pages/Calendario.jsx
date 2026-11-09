@@ -66,7 +66,7 @@ export default function Calendario({ user }) {
 
   async function handleDelete(reserva) {
     await deleteReservation(reserva.id);
-    setMessage("Reserva borrada. Quedó en el Historial de Reservas, desde donde se puede restaurar.");
+    setMessage("Reserva borrada. Ya no aparece en el Calendario ni ocupa el puesto.");
   }
 
   // Semana anterior o siguiente, manteniendo el mismo día de la semana seleccionado.

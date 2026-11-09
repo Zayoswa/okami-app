@@ -24,10 +24,25 @@ import actividad
 import arriendos
 
 load_dotenv(Path(__file__).with_name(".env"))
+
+# Orígenes que pueden llamar a la API desde el navegador (CORS).
+# En el servidor se define CORS_ORIGINS con la URL pública del frontend, separadas por comas si son varias,
+# por ejemplo: CORS_ORIGINS=https://okami-app.onrender.com
+# Sin la variable se usan los orígenes de desarrollo local. Nunca "*": la lista debe quedar cerrada.
+DEV_ORIGINS = ("http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,"
+               "http://localhost:8000,http://127.0.0.1:8000")
+
+
+def allowed_origins(raw=None):
+    raw = os.getenv("CORS_ORIGINS", DEV_ORIGINS) if raw is None else raw
+    # Sin "/" final: el navegador envía el origen sin barra y la comparación es exacta.
+    return [origin.strip().rstrip("/") for origin in raw.split(",") if origin.strip() and origin.strip() != "*"]
+
+
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173","http://localhost:5174","http://127.0.0.1:5173","http://127.0.0.1:5174","http://localhost:8000","http://127.0.0.1:8000"],
+    allow_origins=allowed_origins(),
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Authorization", "Content-Type"],
 )
@@ -115,6 +130,8 @@ def client(admin=False):
 # Roles con acceso a la app. Recepción gestiona el estudio (tatuadores, espacios, actividad y todas las reservas
 # desde el Calendario), pero no ve el Dashboard gerencial, Arriendos ni el módulo Reservas.
 ROLES = ("admin", "tatuador", "recepcion")
+# Cómo se muestra cada rol en los mensajes y en el registro de actividad.
+ROLE_LABELS = {"admin": "administrador", "tatuador": "tatuador", "recepcion": "recepción"}
 STAFF = ("admin", "recepcion")
 
 
@@ -178,7 +195,7 @@ class LoginRequest(BaseModel):
 class CreateUser(BaseModel):
     nombre: str = Field(min_length=1, max_length=120)
     email: str = Field(pattern=r"^[^\s@]+@[^\s@]+\.[^\s@]+$", max_length=254)
-    password: str = Field(min_length=8, max_length=128)
+    password: str = Field(min_length=12, max_length=128)
     rol: int = Field(gt=0)
     # Solo los tatuadores tienen modalidad (define su arriendo); para un admin se ignora.
     modalidad: int | None = Field(default=None, gt=0)
@@ -1168,6 +1185,6 @@ def user_create(new_user: CreateUser, admin=Depends(require_staff)):
             pass
         raise HTTPException(503, "No se pudo crear el perfil del usuario. No se guardó nada; intenta nuevamente.") from exc
     log_event(admin, "tatuador", "registro",
-              f"Registró a {nombre} ({email}) como {rol}" + (f" con modalidad {modalidades.get(modalidad)}." if modalidad else "."), user_id)
-    return {"message": f"{nombre} quedó registrado como {rol}. Ya puede iniciar sesión con su correo y contraseña.",
+              f"Registró a {nombre} ({email}) como {ROLE_LABELS[rol]}" + (f" con modalidad {modalidades.get(modalidad)}." if modalidad else "."), user_id)
+    return {"message": f"{nombre} quedó registrado como {ROLE_LABELS[rol]}. Ya puede iniciar sesión con su correo y contraseña.",
             "id": user_id, "rol": new_user.rol, "modalidad": modalidad}

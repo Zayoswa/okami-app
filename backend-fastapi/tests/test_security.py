@@ -32,6 +32,24 @@ class SecurityHeadersTests(unittest.TestCase):
         self.assertEqual(response.headers['x-frame-options'], 'DENY')
 
 
+class CorsOriginsTests(unittest.TestCase):
+    def test_without_variable_only_local_development_is_allowed(self):
+        with patch.dict('os.environ', {}, clear=False):
+            import os
+            os.environ.pop('CORS_ORIGINS', None)
+            origins = main.allowed_origins()
+        self.assertIn('http://localhost:5173', origins)
+        self.assertTrue(all('localhost' in o or '127.0.0.1' in o for o in origins))
+
+    def test_public_url_comes_from_the_variable(self):
+        origins = main.allowed_origins(' https://okami-app.onrender.com/ , https://otro.example.cl ')
+        self.assertEqual(origins, ['https://okami-app.onrender.com', 'https://otro.example.cl'])
+
+    def test_wildcard_is_never_accepted(self):
+        self.assertEqual(main.allowed_origins('*'), [])
+        self.assertEqual(main.allowed_origins('https://okami-app.onrender.com,*'), ['https://okami-app.onrender.com'])
+
+
 @patch('main.client')
 class LoginRateLimitTests(unittest.TestCase):
     def setUp(self):

@@ -71,7 +71,7 @@ export default function Tatuadores() {
     {error && <Notice tone="danger">{error}</Notice>}{message && <Notice tone="ok">{message}</Notice>}
     <form onSubmit={register}><h2>Registrar usuario</h2>
       <label>Nombre<input required maxLength={120} value={nombre} onChange={e => setNombre(e.target.value)} /></label>
-      <label>Contraseña <input required minLength={8} value={password} onChange={e => setPassword(e.target.value)} autoComplete="new-password"/> </label>
+      <label>Contraseña (mínimo 12 caracteres) <input required minLength={12} value={password} onChange={e => setPassword(e.target.value)} autoComplete="new-password"/> </label>
       <label>Correo<input required type="email" value={email} onChange={e => setEmail(e.target.value)} /></label>
       <label>Modalidad<select required={modalities.length > 0} value={modalidad} onChange={e => setModalidad(e.target.value)}><option value="">Seleccionar</option>{modalities.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}</select></label>
       <label>Rol<select required value={rol} onChange={e => setRol(e.target.value)}><option value="">Seleccionar</option>{roles.map(r => (<option key={r.id} value={r.id}>{r.nombre}</option>))}</select></label>

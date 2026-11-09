@@ -12,13 +12,15 @@ export const navigation = [
   { id: "tatuadores", path: "/tatuadores", label: "Tatuadores", name: "Tatuadores", description: "Registro, acceso y modalidad", roles: ["admin", "recepcion"] },
   { id: "actividad", path: "/actividad", label: "Actividad", name: "Actividad", description: "Quién hizo qué y cuándo en el estudio", roles: ["admin", "recepcion"] },
   { id: "puestos", path: "/espacios", label: "Espacios", name: "Espacios", description: "Estado, tipo y titulares de los puestos", roles: ["admin", "recepcion"] },
-  { id: "alertas", label: "Alertas (Proximamente)", name: "Alertas", comingSoon: true, roles: ["admin", "recepcion"] },
-  { id: "documentacion", label: "Documentacion (Proximamente)", name: "Documentación", comingSoon: true, roles: ["admin", "recepcion"] },
+  // Módulos planificados (sin página todavía). No están en ORDER, así que no aparecen en el menú ni en Inicio;
+  // para mostrarlos como "Próximamente", agregar su id en ORDER.
+  { id: "alertas", label: "Alertas (Próximamente)", name: "Alertas", comingSoon: true, roles: ["admin", "recepcion"] },
+  { id: "documentacion", label: "Documentación (Próximamente)", name: "Documentación", comingSoon: true, roles: ["admin", "recepcion"] },
 ];
 
 const ORDER = {
-  admin: ["inicio", "alertas", "dashboard", "arriendos", "calendario", "reservas", "tatuadores", "puestos", "actividad", "documentacion"],
-  recepcion: ["inicio", "alertas", "calendario", "tatuadores", "puestos", "actividad", "documentacion"],
+  admin: ["inicio", "dashboard", "arriendos", "calendario", "reservas", "tatuadores", "puestos", "actividad"],
+  recepcion: ["inicio", "calendario", "tatuadores", "puestos", "actividad"],
   tatuador: ["inicio", "mi-panel", "mis-reservas", "calendario"],
 };
 

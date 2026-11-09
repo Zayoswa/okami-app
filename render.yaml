@@ -1,0 +1,62 @@
+# Despliegue de Okami en Render (Blueprint). Guía paso a paso: docs/despliegue.md
+#
+# Dos servicios: la API FastAPI y el frontend React como sitio estático.
+# Las claves de Supabase NO van en este archivo (sync: false): Render las pide en su panel al crear el Blueprint.
+# Si Render asigna otros nombres/URLs (porque okami-api u okami-app ya existen), actualizar
+# CORS_ORIGINS, INVITE_REDIRECT_URL y VITE_API_BASE_URL con las URLs reales.
+
+services:
+  - type: web
+    name: okami-api
+    runtime: python
+    plan: free
+    rootDir: backend-fastapi
+    branch: dev # rama que se publica; cada push a ella vuelve a desplegar
+    buildCommand: pip install -r requirements.txt
+    # Un solo proceso (sin --workers): el candado de edición de reservas y el límite de intentos
+    # de login viven en memoria y no se comparten entre procesos.
+    # --proxy-headers: detrás del proxy de Render, la IP real del visitante llega en X-Forwarded-For;
+    # sin esto, el límite de login contaría a todos los usuarios como una sola IP.
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips="*"
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_SECRET_KEY # clave secreta del servidor: solo en el panel de Render
+        sync: false
+      - key: CORS_ORIGINS # URL pública del frontend, sin "/" final
+        value: https://okami-app.onrender.com
+      - key: INVITE_REDIRECT_URL # debe estar también en Supabase → Auth → Redirect URLs
+        value: https://okami-app.onrender.com/invitacion
+
+  - type: web
+    name: okami-app
+    runtime: static
+    rootDir: frontend_react
+    branch: dev
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      # Vite la incrusta al compilar: si cambia, hay que volver a desplegar el frontend.
+      - key: VITE_API_BASE_URL # URL pública de la API, sin "/" final
+        value: https://okami-api.onrender.com
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: no-referrer
+    routes:
+      # La app usa BrowserRouter: /calendario o /invitacion no son archivos.
+      # Toda ruta responde index.html y React muestra la página que corresponde.
+      - type: rewrite
+        source: /*
+        destination: /index.html

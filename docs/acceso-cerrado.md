@@ -25,7 +25,7 @@ Si la cuenta ya existía antes del trigger, crear primero su fila `usuarios` con
 
 ## Prueba completa
 
-- Entrar como dueño. Las contraseñas de `usuariosMock.json` ya no dan acceso por sí solas.
+- Entrar como dueño.
 - Abrir Tatuadores e invitar un correo de prueba autorizado. Solo pulsar Enviar cuando se quiera enviar un correo real.
 - Abrir el correo, establecer contraseña y comprobar acceso como tatuador.
 - Recargar para comprobar la restauración de sesión; cerrar sesión y comprobar que no se restaura.
