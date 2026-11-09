@@ -22,6 +22,7 @@ const Arriendos = lazy(() => import("./pages/Arriendos"));
 const Inicio = lazy(() => import("./pages/Inicio"));
 const MiPanel = lazy(() => import("./pages/MiPanel"));
 const Actividad = lazy(() => import("./pages/Actividad"));
+const Consentimientos = lazy(() => import("./pages/Consentimientos"));
 
 function App() {
   const [user, setUser] = useState(null);
@@ -67,6 +68,7 @@ function App() {
         <Route path="mis-reservas" element={<ModuleAccess user={user} moduleId="mis-reservas"><MisReservas user={user} /></ModuleAccess>} />
         <Route path="tatuadores" element={<ModuleAccess user={user} moduleId="tatuadores"><Tatuadores /></ModuleAccess>} />
         <Route path="espacios" element={<ModuleAccess user={user} moduleId="puestos"><Espacios user={user} /></ModuleAccess>} />
+        <Route path="consentimientos" element={<ModuleAccess user={user} moduleId="consentimientos"><Consentimientos user={user} /></ModuleAccess>} />
         <Route path="calendario" element={<ModuleAccess user={user} moduleId="calendario"><Calendario user={user} /></ModuleAccess>} />
       </Route>
 

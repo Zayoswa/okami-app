@@ -1,0 +1,173 @@
+/* =========================
+   CONSENTIMIENTOS
+   Encabezado con el botón de crear, buscador y una tabla con el PDF de cada folio.
+========================= */
+
+.consent-page {
+  width: 100%;
+  max-width: 1080px;
+}
+
+.consent-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 20px;
+  margin-bottom: 16px;
+}
+
+.consent-header h1 {
+  margin: 0;
+}
+
+.consent-filters {
+  display: flex;
+  margin: 4px 0 16px;
+}
+
+.consent-filters label {
+  display: grid;
+  flex: 1 1 320px;
+  max-width: 420px;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.consent-filters input {
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+/* ---------- Tabla ---------- */
+
+.consent-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-panel-border);
+  border-radius: 12px;
+  background: var(--color-panel);
+}
+
+.consent-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.consent-table th {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-panel-border);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-align: left;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.consent-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border-soft);
+  vertical-align: middle;
+  color: var(--color-text);
+}
+
+.consent-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.consent-table td > span {
+  display: block;
+}
+
+.consent-folio {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.consent-client {
+  font-weight: 600;
+}
+
+.consent-sub {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.consent-minor {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border: 1px solid var(--color-warning-border);
+  border-radius: 999px;
+  background: var(--color-warning-bg);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-gold-text);
+}
+
+.consent-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.consent-actions .reservation-button {
+  min-width: 72px;
+}
+
+.consent-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- Celular: la tabla pasa a filas apiladas ---------- */
+
+@media (max-width: 640px) {
+  .consent-table thead {
+    display: none;
+  }
+
+  .consent-table,
+  .consent-table tbody,
+  .consent-table tr,
+  .consent-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .consent-table tr {
+    position: relative;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--color-border-soft);
+  }
+
+  .consent-table tbody tr:last-child {
+    border-bottom: none;
+  }
+
+  .consent-table td {
+    padding: 2px 0;
+    border: none;
+  }
+
+  .consent-actions {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    width: auto !important;
+  }
+}

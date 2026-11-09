@@ -1,0 +1,22 @@
+/* Consentimiento informado: usa el mismo editor que las reservas (ReservationModal.css). */
+
+/* Representante legal: aparece solo con un cliente menor de edad, resaltado para que no se pase por alto. */
+.consent-modal .consent-guardian {
+  border-color: var(--color-warning-border);
+  background: var(--color-warning-bg);
+}
+
+.consent-modal .reservation-form > .editor-body > .editor-step > label {
+  display: flex;
+}
+
+/* Pie: el aviso de error a la izquierda, los botones a la derecha. */
+.consent-footer .notice {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+
+.consent-footer .reservation-modal-actions {
+  margin-left: auto;
+}

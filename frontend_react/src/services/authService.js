@@ -57,3 +57,26 @@ export function acceptInvitation() {
   }
   if (!session().access_token) throw new Error("Abre el enlace de invitación enviado a tu correo.");
 }
+
+// Descarga un archivo (ej. el PDF de un consentimiento) con la sesión actual; renueva el token si expiró.
+export async function authBlob(path) {
+  async function fetchBlob() {
+    const jwt = session().access_token;
+    return fetch(`${API_BASE_URL}${path}`, { headers: jwt ? { Authorization: `Bearer ${jwt}` } : {} });
+  }
+  let response;
+  try { response = await fetchBlob(); }
+  catch (cause) { throw new Error("No se pudo conectar con el servidor. Comprueba que FastAPI esté iniciado.", { cause }); }
+  if (response.status === 401 && session().refresh_token) {
+    await refreshSession();
+    response = await fetchBlob();
+  }
+  if (!response.ok) {
+    let detail = "No se pudo descargar el archivo.";
+    try { const data = await response.json(); if (typeof data.detail === "string") detail = data.detail; } catch { /* sin detalle */ }
+    const error = new Error(detail);
+    error.status = response.status;
+    throw error;
+  }
+  return response.blob();
+}

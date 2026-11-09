@@ -14,8 +14,9 @@ const CATEGORIAS = [
   { id: "puesto", label: "Espacios" },
   { id: "tatuador", label: "Tatuadores" },
   { id: "arriendo", label: "Arriendos" },
+  { id: "consentimiento", label: "Consentimientos" },
 ];
-const CATEGORY_LABEL = { reserva: "Reserva", sesion: "Sesión", puesto: "Espacio", tatuador: "Tatuador", arriendo: "Arriendo" };
+const CATEGORY_LABEL = { reserva: "Reserva", sesion: "Sesión", puesto: "Espacio", tatuador: "Tatuador", arriendo: "Arriendo", consentimiento: "Consentimiento" };
 // Texto con las palabras clave pintadas (acciones, estados, montos y la flecha de los cambios).
 function Highlighted({ text }) {
   return highlightParts(text).map((part, index) => part.tone

@@ -1,6 +1,6 @@
 // Módulos de la app. label: texto del menú lateral; name y description: botón de la página Inicio.
 // Roles: admin (todo), recepcion (gestiona el estudio, sin Dashboard gerencial, Arriendos ni Reservas)
-// y tatuador (su panel, sus reservas y el calendario).
+// y tatuador (su panel, sus reservas, el calendario y los consentimientos de sus clientes).
 export const navigation = [
   { id: "inicio", path: "/inicio", label: "Inicio", name: "Inicio", roles: ["admin", "recepcion", "tatuador"] },
   { id: "dashboard", path: "/dashboard", label: "Dashboard", name: "Dashboard", description: "Arriendo del mes, ventas y sesiones por cerrar", roles: ["admin"] },
@@ -12,6 +12,7 @@ export const navigation = [
   { id: "tatuadores", path: "/tatuadores", label: "Tatuadores", name: "Tatuadores", description: "Registro, acceso y modalidad", roles: ["admin", "recepcion"] },
   { id: "actividad", path: "/actividad", label: "Actividad", name: "Actividad", description: "Quién hizo qué y cuándo en el estudio", roles: ["admin", "recepcion"] },
   { id: "puestos", path: "/espacios", label: "Espacios", name: "Espacios", description: "Estado, tipo y titulares de los puestos", roles: ["admin", "recepcion"] },
+  { id: "consentimientos", path: "/consentimientos", label: "Consentimientos", name: "Consentimientos", description: "Consentimiento informado del cliente, listo para imprimir", roles: ["admin", "recepcion", "tatuador"] },
   // Módulos planificados (sin página todavía). No están en ORDER, así que no aparecen en el menú ni en Inicio;
   // para mostrarlos como "Próximamente", agregar su id en ORDER.
   { id: "alertas", label: "Alertas (Próximamente)", name: "Alertas", comingSoon: true, roles: ["admin", "recepcion"] },
@@ -19,9 +20,9 @@ export const navigation = [
 ];
 
 const ORDER = {
-  admin: ["inicio", "dashboard", "arriendos", "calendario", "reservas", "tatuadores", "puestos", "actividad"],
-  recepcion: ["inicio", "calendario", "tatuadores", "puestos", "actividad"],
-  tatuador: ["inicio", "mi-panel", "mis-reservas", "calendario"],
+  admin: ["inicio", "dashboard", "arriendos", "calendario", "reservas", "consentimientos", "tatuadores", "puestos", "actividad"],
+  recepcion: ["inicio", "calendario", "consentimientos", "tatuadores", "puestos", "actividad"],
+  tatuador: ["inicio", "mi-panel", "mis-reservas", "calendario", "consentimientos"],
 };
 
 export function modulesForUser(user) {

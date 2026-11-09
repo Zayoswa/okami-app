@@ -14,3 +14,7 @@ typing_extensions==4.16.0
 uvicorn==0.54.0
 python-dotenv==1.2.4
 supabase==2.33.0
+pypdf==7.0.0
+reportlab==5.1.0
+pillow==13.0.0
+charset-normalizer==3.5.2

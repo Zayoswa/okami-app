@@ -8,12 +8,12 @@ import time as time_module
 from concurrent.futures import ThreadPoolExecutor
 import httpx
 from pathlib import Path
-from datetime import date, time
+from datetime import date, time, timedelta
 from typing import Literal
 from uuid import UUID
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
@@ -22,6 +22,7 @@ from supabase import create_client
 from supabase.lib.client_options import SyncClientOptions
 
 import actividad
+import consentimiento_pdf
 import arriendos
 
 load_dotenv(Path(__file__).with_name(".env"))
@@ -1131,7 +1132,7 @@ TEXT_FILTER = re.compile(r"[^\w\s@.\-]")
 
 @app.get('/api/actividad')
 def activity_log(
-    categoria: Literal['reserva', 'sesion', 'puesto', 'tatuador', 'arriendo'] | None = None,
+    categoria: Literal['reserva', 'sesion', 'puesto', 'tatuador', 'arriendo', 'consentimiento'] | None = None,
     actor: UUID | None = None,
     desde: date | None = None,
     hasta: date | None = None,
@@ -1222,3 +1223,181 @@ def user_create(new_user: CreateUser, admin=Depends(require_staff)):
               f"Registró a {nombre} ({email}) como {ROLE_LABELS[rol]}" + (f" con modalidad {modalidades.get(modalidad)}." if modalidad else "."), user_id)
     return {"message": f"{nombre} quedó registrado como {ROLE_LABELS[rol]}. Ya puede iniciar sesión con su correo y contraseña.",
             "id": user_id, "rol": new_user.rol, "modalidad": modalidad}
+
+
+# ---------- Consentimiento informado (migración 018) ----------
+# Lo llenan admin, recepción o el tatuador; se guarda con folio correlativo y se imprime sobre la plantilla
+# (plantillas/consentimiento.pdf). Un tatuador solo crea y ve los consentimientos de sus propios clientes.
+# No se editan ni se borran: son el respaldo de lo que firmó el cliente. Contienen datos de salud (ley 19.628).
+TELEFONO_PATTERN = r'^[0-9+() \-]{6,20}$'
+CONSENT_COLUMNS = ('id,folio,fecha,reserva,tatuador,tatuador_nombre,tatuador_rut,tatuador_nacimiento,tatuador_telefono,'
+                   'cliente_nombre,cliente_rut,cliente_nacimiento,cliente_telefono,cliente_direccion,'
+                   'representante_nombre,representante_rut,representante_nacimiento,representante_telefono,'
+                   'descripcion,zona_cuerpo,condiciones,tipo_tatuaje,creado_en')
+
+
+class ConsentRequest(BaseModel):
+    fecha: date
+    reservaId: UUID | None = None
+    tatuadorId: UUID
+    tatuadorRut: str = Field(max_length=16)
+    tatuadorNacimiento: date | None = None
+    tatuadorTelefono: str | None = Field(default=None, max_length=20)
+    clienteNombre: str = Field(max_length=120)
+    clienteRut: str = Field(max_length=16)
+    clienteNacimiento: date
+    clienteTelefono: str | None = Field(default=None, max_length=20)
+    clienteDireccion: str | None = Field(default=None, max_length=120)
+    representanteNombre: str | None = Field(default=None, max_length=120)
+    representanteRut: str | None = Field(default=None, max_length=16)
+    representanteNacimiento: date | None = None
+    representanteTelefono: str | None = Field(default=None, max_length=20)
+    descripcion: str = Field(max_length=160)
+    zonaCuerpo: str = Field(max_length=80)
+    condiciones: str | None = Field(default=None, max_length=160)
+    tipoTatuaje: Literal['Nuevo', 'Cover', 'Retoque']
+
+
+def consent_text(value):
+    return ' '.join((value or '').split()) or None
+
+
+def labeled_rut_error(rut, quien):
+    error = rut_error(normalize_rut(rut))
+    return f'RUT {quien}: ' + error[0].lower() + error[1:].replace(' del cliente', '') if error else ''
+
+
+def consent_errors(data, hoy):
+    """Primer problema de los datos del consentimiento, o ''."""
+    if data.fecha > hoy + timedelta(days=1) or data.fecha < hoy - timedelta(days=366):
+        return 'La fecha del consentimiento debe ser la de hoy (o de este último año).'
+    error = labeled_rut_error(data.tatuadorRut, 'del tatuador')
+    if error:
+        return error
+    error = client_name_error(clean_name(data.clienteNombre)) or rut_error(normalize_rut(data.clienteRut))
+    if error:
+        return error
+    for etiqueta, nacimiento in (('del tatuador', data.tatuadorNacimiento), ('del cliente', data.clienteNacimiento),
+                                 ('del representante', data.representanteNacimiento)):
+        if nacimiento and (nacimiento > data.fecha or nacimiento.year < 1900):
+            return f'La fecha de nacimiento {etiqueta} no es válida.'
+    for etiqueta, telefono in (('del tatuador', data.tatuadorTelefono), ('del cliente', data.clienteTelefono),
+                               ('del representante', data.representanteTelefono)):
+        if telefono and telefono.strip() and not re.fullmatch(TELEFONO_PATTERN, telefono.strip()):
+            return f'El teléfono {etiqueta} solo puede tener números, espacios, + y guiones.'
+    if consentimiento_pdf.edad(data.clienteNacimiento, data.fecha) < 18:
+        if not consent_text(data.representanteNombre) or not (data.representanteRut or '').strip():
+            return 'El cliente es menor de edad: ingresa el nombre y RUT de su representante legal.'
+        error = client_name_error(clean_name(data.representanteNombre))
+        if error:
+            return error.replace('del cliente', 'del representante')
+        error = labeled_rut_error(data.representanteRut, 'del representante')
+        if error:
+            return error
+    if not consent_text(data.descripcion):
+        return 'Describe el tatuaje a realizar.'
+    if not consent_text(data.zonaCuerpo):
+        return 'Indica la zona del cuerpo.'
+    return ''
+
+
+def consent_response(row):
+    return {'id': row['id'], 'folio': row['folio'], 'fecha': row['fecha'], 'reservaId': row.get('reserva'),
+            'tatuadorId': row['tatuador'], 'tatuador': row['tatuador_nombre'], 'cliente': row['cliente_nombre'],
+            'clienteRut': row['cliente_rut'], 'zonaCuerpo': row['zona_cuerpo'], 'tipoTatuaje': row['tipo_tatuaje'],
+            'menorDeEdad': bool(row.get('representante_nombre')), 'creadoEn': row['creado_en']}
+
+
+@app.get('/api/consentimientos')
+def list_consents(q: str | None = Query(default=None, max_length=60), user=Depends(get_current_user)):
+    try:
+        query = client(admin=True).table('consentimientos').select(CONSENT_COLUMNS)
+        if user['role'] == 'tatuador':
+            query = query.eq('tatuador', user['id'])
+        rows = query.order('folio', desc=True).limit(300).execute().data
+    except Exception as exc:
+        raise HTTPException(503, 'No se pudieron cargar los consentimientos.') from exc
+    texto = (q or '').strip().casefold()
+    if texto:
+        rut = normalize_rut(texto)
+        rows = [row for row in rows if texto in row['cliente_nombre'].casefold()
+                or (len(rut) >= 3 and rut in row['cliente_rut']) or texto.lstrip('0') == str(row['folio'])]
+    return [consent_response(row) for row in rows]
+
+
+@app.get('/api/consentimientos/tatuador/{tatuador_id}')
+def last_artist_data(tatuador_id: UUID, user=Depends(get_current_user)):
+    """RUT, nacimiento y teléfono del tatuador según su último consentimiento (para no escribirlos cada vez)."""
+    if user['role'] == 'tatuador' and str(tatuador_id) != str(user['id']):
+        raise HTTPException(403, 'Solo puedes ver tus propios datos.')
+    try:
+        rows = (client(admin=True).table('consentimientos')
+                .select('tatuador_rut,tatuador_nacimiento,tatuador_telefono')
+                .eq('tatuador', str(tatuador_id)).order('folio', desc=True).limit(1).execute().data)
+    except Exception as exc:
+        raise HTTPException(503, 'No se pudieron cargar los datos del tatuador.') from exc
+    row = rows[0] if rows else {}
+    return {'rut': row.get('tatuador_rut'), 'nacimiento': row.get('tatuador_nacimiento'), 'telefono': row.get('tatuador_telefono')}
+
+
+@app.post('/api/consentimientos', status_code=201)
+def create_consent(data: ConsentRequest, user=Depends(get_current_user)):
+    if user['role'] == 'tatuador' and str(data.tatuadorId) != str(user['id']):
+        raise HTTPException(403, 'Solo puedes crear consentimientos para tus propios clientes.')
+    error = consent_errors(data, date.today())
+    if error:
+        raise HTTPException(422, error)
+    db = client(admin=True)
+    try:
+        artista = (db.table('usuarios').select('id,nombre,rol').eq('id', str(data.tatuadorId)).execute().data or [None])[0]
+        roles = {row['id']: row['nombre'].strip().lower() for row in db.table('rol').select('id,nombre').execute().data}
+    except Exception as exc:
+        raise HTTPException(503, 'No se pudo comprobar el tatuador.') from exc
+    if not artista or roles.get(artista['rol']) != 'tatuador':
+        raise HTTPException(422, 'Elige un tatuador válido.')
+    if data.reservaId:
+        reserva = reservation_snapshot(user, data.reservaId)
+        if not reserva or 'cliente' not in reserva:
+            raise HTTPException(404, 'No se encontró la reserva o no tienes acceso a ella.')
+    menor = consentimiento_pdf.edad(data.clienteNacimiento, data.fecha) < 18
+    fila = {
+        'fecha': data.fecha.isoformat(), 'reserva': str(data.reservaId) if data.reservaId else None,
+        'tatuador': str(data.tatuadorId), 'tatuador_nombre': artista['nombre'],
+        'tatuador_rut': normalize_rut(data.tatuadorRut),
+        'tatuador_nacimiento': data.tatuadorNacimiento.isoformat() if data.tatuadorNacimiento else None,
+        'tatuador_telefono': consent_text(data.tatuadorTelefono),
+        'cliente_nombre': clean_name(data.clienteNombre), 'cliente_rut': normalize_rut(data.clienteRut),
+        'cliente_nacimiento': data.clienteNacimiento.isoformat(),
+        'cliente_telefono': consent_text(data.clienteTelefono), 'cliente_direccion': consent_text(data.clienteDireccion),
+        'representante_nombre': clean_name(data.representanteNombre) if menor else None,
+        'representante_rut': normalize_rut(data.representanteRut) if menor else None,
+        'representante_nacimiento': data.representanteNacimiento.isoformat() if menor and data.representanteNacimiento else None,
+        'representante_telefono': consent_text(data.representanteTelefono) if menor else None,
+        'descripcion': consent_text(data.descripcion), 'zona_cuerpo': consent_text(data.zonaCuerpo),
+        'condiciones': consent_text(data.condiciones), 'tipo_tatuaje': data.tipoTatuaje, 'creado_por': user['id'],
+    }
+    try:
+        row = db.table('consentimientos').insert(fila).execute().data[0]
+    except Exception as exc:
+        raise HTTPException(503, 'No se pudo guardar el consentimiento. Intenta nuevamente.') from exc
+    log_event(user, 'consentimiento', 'crear',
+              f"Creó el consentimiento folio {int(row['folio']):06d} de {row['cliente_nombre']} con {row['tatuador_nombre']}"
+              + (' (menor de edad, con representante).' if menor else '.'), row['id'])
+    return consent_response(row)
+
+
+@app.get('/api/consentimientos/{consent_id}/pdf')
+def consent_pdf(consent_id: UUID, user=Depends(get_current_user)):
+    try:
+        rows = client(admin=True).table('consentimientos').select(CONSENT_COLUMNS).eq('id', str(consent_id)).execute().data
+    except Exception as exc:
+        raise HTTPException(503, 'No se pudo cargar el consentimiento.') from exc
+    if not rows or (user['role'] == 'tatuador' and str(rows[0]['tatuador']) != str(user['id'])):
+        raise HTTPException(404, 'No se encontró el consentimiento.')
+    try:
+        contenido = consentimiento_pdf.generar(rows[0])
+    except Exception as exc:
+        raise HTTPException(500, 'No se pudo generar el PDF del consentimiento.') from exc
+    nombre = f"consentimiento-{int(rows[0]['folio']):06d}.pdf"
+    return Response(contenido, media_type='application/pdf',
+                    headers={'Content-Disposition': f'inline; filename="{nombre}"', 'Cache-Control': 'no-store'})

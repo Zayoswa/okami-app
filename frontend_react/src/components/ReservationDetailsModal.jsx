@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import useModalDialog from "../hooks/useModalDialog";
 import SessionStatusButtons from "./SessionStatusButtons";
 import { completedSessions, isArchived, reservationStatus } from "../utils/sessions";
@@ -14,6 +15,7 @@ import "./ReservationDetailsModal.css";
 // Cliente y precio pueden venir vacíos: el backend los oculta en reservas de otros tatuadores.
 export default function ReservationDetailsModal({ sesion = null, reserva: reservaProp = null, canManage, onEdit, onChangeStatus, onRestore, onClose }) {
   const dialogRef = useModalDialog();
+  const navigate = useNavigate();
   const reserva = sesion?.reserva ?? reservaProp;
   const sesiones = reserva?.sesiones ?? [];
   const estado = reservationStatus(reserva);
@@ -80,6 +82,8 @@ export default function ReservationDetailsModal({ sesion = null, reserva: reserv
 
       <div className="reservation-modal-actions">
         <button type="button" className="reservation-button reservation-button-secondary" onClick={onClose} autoFocus={!canManage || archived}>Cerrar</button>
+        {/* Consentimiento informado con los datos de esta reserva (cliente, tatuador, zona y diseño). */}
+        {canManage && !archived && hasCliente && <button type="button" className="reservation-button reservation-button-secondary" onClick={() => navigate(`/consentimientos?reserva=${encodeURIComponent(reserva.id)}`)}>Consentimiento</button>}
         {canManage && !archived && <button type="button" className="reservation-button" onClick={() => onEdit(sesion ?? reserva)} autoFocus>Editar reserva</button>}
         {canManage && archived && onRestore && <button type="button" className="reservation-button" onClick={() => onRestore(reserva)}>Restaurar</button>}
       </div>
