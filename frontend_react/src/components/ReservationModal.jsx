@@ -24,6 +24,10 @@ function newSession(fecha, puestoId = "") {
   return { id: crypto.randomUUID(), fecha, horaInicio: "", horaFin: "", puestoId, estado: "Programada" };
 }
 
+// Límites de los datos del tatuaje (los mismos que valida el servidor).
+const ZONA_MAX = 80;
+const DISENO_MAX = 1000;
+
 // sesiones: todas las sesiones del estudio (lista plana) para detectar choques de puesto y tatuador.
 export default function ReservationModal({ puestos, catalogos, user, reserva, sesiones, initialDate = "", initialPuesto = "", onSave, onClose }) {
   const dialogRef = useModalDialog();
@@ -36,6 +40,9 @@ export default function ReservationModal({ puestos, catalogos, user, reserva, se
   const [clienteRut, setClienteRut] = useState(formatRut(reserva?.clienteRut ?? ""));
   const [tatuadorId, setTatuadorId] = useState(user.role === "tatuador" ? user.id : reserva?.tatuadorId ?? "");
   const [precio, setPrecio] = useState(reserva?.precio ?? "");
+  // Datos del tatuaje (opcionales): parte del cuerpo y nota con la descripción del diseño.
+  const [zonaCuerpo, setZonaCuerpo] = useState(reserva?.zonaCuerpo ?? "");
+  const [descripcionDiseno, setDescripcionDiseno] = useState(reserva?.descripcionDiseno ?? "");
   // Puesto del que el tatuador es titular: se propone por defecto en las sesiones nuevas.
   const homePuesto = titularPuesto(puestos, tatuadorId);
   // Modalidad del tatuador elegido: un puesto Guest solo acepta tatuadores Guest.
@@ -140,6 +147,8 @@ export default function ReservationModal({ puestos, catalogos, user, reserva, se
         clienteRut: normalizeRut(clienteRut),
         tatuadorId,
         precio: price,
+        zonaCuerpo: zonaCuerpo.replace(/\s+/g, " ").trim(),
+        descripcionDiseno: descripcionDiseno.trim(),
         sesiones: sessions,
         // Versión con la que se abrió el formulario: si otra persona cambió la reserva mientras tanto,
         // el servidor responde 409 y se muestra el aviso en vez de pisar su cambio.
@@ -211,6 +220,14 @@ export default function ReservationModal({ puestos, catalogos, user, reserva, se
                 <small className="editor-hint">{hasPrice ? formatPrice(priceNumber) : "Monto entero, sin puntos."}</small>
               </label>
             </div>
+            <label>Zona del cuerpo
+              <input value={zonaCuerpo} onChange={(event) => { setZonaCuerpo(event.target.value); setError(""); }} maxLength={ZONA_MAX} placeholder="Antebrazo derecho" autoComplete="off" />
+              <small className="editor-hint">Opcional. Dónde se tatúa el cliente.</small>
+            </label>
+            <label>Descripción del diseño
+              <textarea value={descripcionDiseno} onChange={(event) => { setDescripcionDiseno(event.target.value); setError(""); }} maxLength={DISENO_MAX} rows={3} placeholder="Rosa en línea fina con sombreado suave, 10 cm aprox." />
+              <small className="editor-hint">Opcional. {descripcionDiseno.length} / {DISENO_MAX} caracteres.</small>
+            </label>
           </section>
 
           {/* Paso 3: sesiones */}

@@ -227,6 +227,9 @@ class ReservationRequest(BaseModel):
     tatuadorId: UUID
     precio: int = Field(ge=0, le=9007199254740991)
     sesiones: list[ReservationSession] = Field(min_length=1, max_length=30)
+    # Datos del tatuaje (opcionales): parte del cuerpo y nota con la descripción del diseño.
+    zonaCuerpo: str | None = Field(default=None, max_length=200)
+    descripcionDiseno: str | None = Field(default=None, max_length=3000)
 
 
 class ReservationCreate(ReservationRequest):
@@ -635,12 +638,65 @@ def reservation_rpc(name, params):
 # ---------- Versión de una reserva (ediciones simultáneas) ----------
 # Huella del contenido que se puede editar: si cambia cualquiera de estos datos (también el estado de una sesión),
 # cambia la versión. No necesita columnas nuevas: se calcula sobre lo que devuelve okami_listar_reservas.
+# ---------- Zona del cuerpo y descripción del diseño ----------
+# Viven en columnas de reservas (migración 017) y las guarda/lee FastAPI, sin cambiar las funciones SQL.
+ZONA_MAX, DISENO_MAX = 80, 1000
+
+
+def clean_zona(value):
+    """Parte del cuerpo en una línea, sin espacios repetidos. Vacía = None."""
+    return re.sub(r'\s+', ' ', value or '').strip() or None
+
+
+def clean_diseno(value):
+    """Nota del diseño: conserva los saltos de línea, sin espacios al final. Vacía = None."""
+    lineas = [linea.rstrip() for linea in (value or '').replace('\r\n', '\n').replace('\r', '\n').split('\n')]
+    return re.sub(r'\n{3,}', '\n\n', '\n'.join(lineas)).strip() or None
+
+
+def tattoo_details_error(zona, diseno):
+    if zona and len(zona) > ZONA_MAX:
+        return f'La zona del cuerpo admite hasta {ZONA_MAX} caracteres.'
+    if diseno and len(diseno) > DISENO_MAX:
+        return f'La descripción del diseño admite hasta {DISENO_MAX} caracteres.'
+    return ''
+
+
+def with_tattoo_details(rows):
+    """Agrega zonaCuerpo y descripcionDiseno a las reservas cuyo detalle ve el usuario (las que traen cliente).
+    En reservas de otros tatuadores no se agregan, igual que el cliente y el precio."""
+    if not isinstance(rows, list):
+        return rows
+    ids = [str(row['id']) for row in rows if isinstance(row, dict) and 'cliente' in row]
+    if not ids:
+        return rows
+    try:
+        datos = {str(x['id']): x for x in client(admin=True).table('reservas')
+                 .select('id,zona_cuerpo,descripcion_diseno').in_('id', ids).execute().data}
+    except Exception:  # noqa: BLE001 - sin la migración 017 la agenda sigue funcionando, solo sin estos datos
+        return rows
+    for row in rows:
+        if isinstance(row, dict) and str(row.get('id')) in datos:
+            row['zonaCuerpo'] = datos[str(row['id'])].get('zona_cuerpo')
+            row['descripcionDiseno'] = datos[str(row['id'])].get('descripcion_diseno')
+    return rows
+
+
+def save_tattoo_details(reservation_id, zona, diseno):
+    try:
+        client(admin=True).table('reservas').update({'zona_cuerpo': zona, 'descripcion_diseno': diseno}) \
+            .eq('id', str(reservation_id)).execute()
+    except Exception as exc:
+        raise HTTPException(503, 'La reserva se guardó, pero no la zona del cuerpo ni la descripción del diseño. '
+                                 'Edítala para intentarlo de nuevo.') from exc
+
+
 def reservation_version(reserva):
     sesiones = sorted(
         ([str(x.get('id')), str(x.get('puestoId')), x.get('fecha'), x.get('horaInicio'), x.get('horaFin'), x.get('estado')]
          for x in (reserva.get('sesiones') or []) if isinstance(x, dict)), key=lambda item: item[0])
     contenido = [reserva.get('cliente'), reserva.get('clienteRut'), str(reserva.get('tatuadorId')), reserva.get('precio'),
-                 reserva.get('archivadaEn'), sesiones]
+                 reserva.get('archivadaEn'), sesiones, reserva.get('zonaCuerpo'), reserva.get('descripcionDiseno')]
     return hashlib.sha256(json.dumps(contenido, ensure_ascii=False, default=str).encode()).hexdigest()[:16]
 
 
@@ -660,7 +716,7 @@ STALE_RESERVATION = 'Esta reserva cambió mientras la editabas (otra persona la 
 
 @app.get('/api/reservas')
 def list_reservations(user=Depends(get_current_user)):
-    rows = reservation_rpc('okami_listar_reservas', {'p_actor': user['id']})
+    rows = with_tattoo_details(reservation_rpc('okami_listar_reservas', {'p_actor': user['id']}))
     if not isinstance(rows, list):
         return rows
     return [{**row, 'version': reservation_version(row)} if isinstance(row, dict) else row for row in rows]
@@ -739,7 +795,7 @@ def sessions_error(sessions):
 def reservation_snapshot(user, reservation_id):
     """La reserva tal como la ve `user` (formato de okami_listar_reservas), o None. Para el registro de actividad."""
     try:
-        rows = reservation_rpc('okami_listar_reservas', {'p_actor': user['id']})
+        rows = with_tattoo_details(reservation_rpc('okami_listar_reservas', {'p_actor': user['id']}))
     except HTTPException:
         return None
     if not isinstance(rows, list):
@@ -813,7 +869,12 @@ def _write_reservation(operation, reservation_id, data, user):
     # Edición con una versión vieja: otra persona la cambió después de abrir el formulario.
     if operation == 'editar' and data is not None and data.version and antes and reservation_version(antes) != data.version:
         raise HTTPException(409, STALE_RESERVATION)
+    zona = diseno = None
     if data is not None:
+        zona, diseno = clean_zona(data.zonaCuerpo), clean_diseno(data.descripcionDiseno)
+        error = tattoo_details_error(zona, diseno)
+        if error:
+            raise HTTPException(422, error)
         error = sessions_error(data.sesiones)
         if error:
             raise HTTPException(422, error)
@@ -835,6 +896,9 @@ def _write_reservation(operation, reservation_id, data, user):
                                    'inicio': f'{s.fecha}T{s.horaInicio}', 'fin': f'{s.fecha}T{s.horaFin}'}
                                   for s in data.sesiones])
     result = {'id': reservation_rpc('okami_guardar_reserva', params)}
+    # Zona y diseño: solo se escriben si cambian (una reserva nueva sin estos datos no toca las columnas).
+    if data is not None and (zona, diseno) != ((antes or {}).get('zonaCuerpo'), (antes or {}).get('descripcionDiseno')):
+        save_tattoo_details(reservation_id, zona, diseno)
     log_reservation(operation, reservation_id, user, antes)
     return result
 

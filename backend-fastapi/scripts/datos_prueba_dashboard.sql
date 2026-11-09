@@ -104,8 +104,8 @@ BEGIN
     duracion := CASE WHEN v_hora = 19 THEN 2 ELSE 2 + r % 2 END;
 
     -- Los clientes 1 a 4 vuelven por una segunda reserva.
-    INSERT INTO public.reservas(id, "user", cliente_nombre, cliente_rut, documentos, creado_por, precio, fecha_creacion)
-    VALUES (v_reserva, v_tatuador, nombres[1 + (r - 1) % 20], ruts[1 + (r - 1) % 20], NULL, actor,
+    INSERT INTO public.reservas(id, "user", cliente, cliente_nombre, cliente_rut, documentos, creado_por, precio, fecha_creacion)
+    VALUES (v_reserva, v_tatuador, NULL, nombres[1 + (r - 1) % 20], ruts[1 + (r - 1) % 20], NULL, actor,
             (45000 + ((r * 7919) % 17) * 25000)::bigint,
             LEAST(now(), (primer_dia - (5 + r % 20))::timestamp AT TIME ZONE 'America/Santiago' + interval '12 hours'));
 

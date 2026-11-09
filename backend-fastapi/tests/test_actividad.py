@@ -54,7 +54,10 @@ class DescribeTests(unittest.TestCase):
     def test_registrar_never_raises(self):
         db = Mock()
         db.table.return_value.insert.return_value.execute.side_effect = Exception('sin tabla')
-        actividad.registrar(db, {'id': 'u', 'name': 'Bax', 'role': 'admin'}, 'reserva', 'crear', 'x')
+        # El fallo no se propaga: queda solo en el log del servidor (assertLogs lo comprueba y no lo imprime).
+        with self.assertLogs('okami.actividad', level='ERROR') as logs:
+            actividad.registrar(db, {'id': 'u', 'name': 'Bax', 'role': 'admin'}, 'reserva', 'crear', 'x')
+        self.assertIn('reserva/crear', logs.output[0])
         sent = db.table.return_value.insert.call_args.args[0]
         self.assertEqual((sent['actor_nombre'], sent['actor_rol'], sent['categoria']), ('Bax', 'admin', 'reserva'))
 

@@ -134,13 +134,30 @@
 }
 
 /* Campos: foco dorado y estados válido / inválido */
+.reservation-editor .reservation-form textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 76px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  resize: vertical;
+}
+
 .reservation-editor .reservation-form input,
-.reservation-editor .reservation-form select {
+.reservation-editor .reservation-form select,
+.reservation-editor .reservation-form textarea {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .reservation-editor .reservation-form input:focus,
-.reservation-editor .reservation-form select:focus {
+.reservation-editor .reservation-form select:focus,
+.reservation-editor .reservation-form textarea:focus {
   outline: none;
   border-color: var(--color-gold);
   box-shadow: 0 0 0 3px var(--color-gold-ring);

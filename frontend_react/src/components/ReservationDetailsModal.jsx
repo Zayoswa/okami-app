@@ -52,6 +52,8 @@ export default function ReservationDetailsModal({ sesion = null, reserva: reserv
         {hasPrecio && <div><dt>Precio total</dt><dd>{formatPrice(reserva.precio)}</dd></div>}
         <div><dt>Avance</dt><dd>{completedSessions(reserva)} de {sesiones.length} {sesiones.length === 1 ? "sesión" : "sesiones"}</dd></div>
         <div><dt>Estado de la reserva</dt><dd><span className={`reserva-estado ${estado.toLowerCase()}`}>{estado}</span></dd></div>
+        {reserva?.zonaCuerpo && <div><dt>Zona del cuerpo</dt><dd>{reserva.zonaCuerpo}</dd></div>}
+        {reserva?.descripcionDiseno && <div className="details-grid-wide"><dt>Descripción del diseño</dt><dd className="details-design">{reserva.descripcionDiseno}</dd></div>}
         {archived && <div><dt>Borrada</dt><dd><time dateTime={reserva.archivadaEn}>{formatDateTime(reserva.archivadaEn)}</time></dd></div>}
       </dl>
 

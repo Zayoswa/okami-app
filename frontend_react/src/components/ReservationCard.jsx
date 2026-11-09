@@ -17,7 +17,7 @@ export default function ReservationCard({ reserva, onChangeStatus, onView, onEdi
       <div className="reserva-main">
         <div className="reserva-identity">
           <p className="reserva-cliente">{reserva.cliente}</p>
-          <p className="reserva-tatuador">Tatuador: {reserva.tatuador}</p>
+          <p className="reserva-tatuador">Tatuador: {reserva.tatuador}{reserva.zonaCuerpo && <> · {reserva.zonaCuerpo}</>}</p>
         </div>
 
         <dl className="reserva-info">

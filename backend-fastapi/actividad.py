@@ -79,6 +79,10 @@ def reservation_changes(antes, despues):
         cambios.append(f"Tatuador: {antes.get('tatuador')} → {despues.get('tatuador')}")
     if antes.get('precio') != despues.get('precio'):
         cambios.append(f"Precio: {price(antes.get('precio'))} → {price(despues.get('precio'))}")
+    if (antes.get('zonaCuerpo') or '') != (despues.get('zonaCuerpo') or ''):
+        cambios.append(f"Zona del cuerpo: {antes.get('zonaCuerpo') or 'sin indicar'} → {despues.get('zonaCuerpo') or 'sin indicar'}")
+    if (antes.get('descripcionDiseno') or '') != (despues.get('descripcionDiseno') or ''):
+        cambios.append('Descripción del diseño actualizada')
     previas = {s['id']: s for s in antes.get('sesiones') or []}
     nuevas = {s['id']: s for s in despues.get('sesiones') or []}
     for sid, sesion in nuevas.items():

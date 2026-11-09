@@ -89,6 +89,8 @@ class AccessTests(unittest.TestCase):
                 if name == 'modalidad':
                     mock.select.return_value.execute.return_value = SimpleNamespace(data=modalities)
                     return mock
+                if name == 'registro_actividad':  # la bitácora solo recibe inserts; el Mock los acepta
+                    return mock
                 values = pending[name]
                 mock.select.return_value.eq.return_value.execute.side_effect = lambda: SimpleNamespace(data=next(values))
                 mock.insert.return_value.execute.return_value = SimpleNamespace(data=[{}])

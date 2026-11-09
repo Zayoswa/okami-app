@@ -1,7 +1,9 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
+from uuid import UUID
 from fastapi.testclient import TestClient
 from postgrest.exceptions import APIError
+import actividad
 import main
 
 ACTOR = '11111111-1111-1111-1111-111111111111'
@@ -26,6 +28,10 @@ class ReservationsTests(unittest.TestCase):
             self.addCleanup(patcher.stop)
         # Sin puestos Guest: la regla del puesto Guest se prueba aparte (GuestPuestoTests).
         patcher = patch('main.guest_rule_data', return_value=({}, None))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        # Zona y diseño se prueban aparte (TattooDetailsTests): aquí no se consulta la base.
+        patcher = patch('main.with_tattoo_details', side_effect=lambda rows: rows)
         patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -260,6 +266,9 @@ class ReservationVersionTests(unittest.TestCase):
             patcher = patch(f'main.{name}', return_value=value)
             patcher.start()
             self.addCleanup(patcher.stop)
+        patcher = patch('main.with_tattoo_details', side_effect=lambda rows: rows)
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def test_version_changes_with_any_editable_field(self):
         base = main.reservation_version(self.ACTUAL)
@@ -293,3 +302,85 @@ class ReservationVersionTests(unittest.TestCase):
         self.assertEqual(ok.status_code, 200, ok.text)
         sin_version = self.api.patch(f'/api/reservas/{RESERVA}', json=body)
         self.assertEqual(sin_version.status_code, 200, sin_version.text)
+
+
+class TattooDetailsTests(unittest.TestCase):
+    """Zona del cuerpo y descripción del diseño: opcionales, se limpian y se guardan solo si cambian."""
+
+    def setUp(self):
+        self.api = TestClient(main.app)
+        main.app.dependency_overrides[main.get_current_user] = lambda: {'id': ACTOR, 'role': 'tatuador'}
+        self.addCleanup(main.app.dependency_overrides.clear)
+        for name, value in (('log_event', None), ('guest_rule_data', ({}, None)), ('reservation_snapshot', None)):
+            patcher = patch(f'main.{name}', return_value=value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def test_cleaning(self):
+        self.assertEqual(main.clean_zona('  antebrazo \n  derecho '), 'antebrazo derecho')
+        self.assertIsNone(main.clean_zona('   '))
+        self.assertEqual(main.clean_diseno('Rosa  \r\n\r\n\r\n\r\ncon espinas  '), 'Rosa\n\ncon espinas')
+        self.assertIsNone(main.clean_diseno('\n \n'))
+
+    @patch('main.save_tattoo_details')
+    @patch('main.reservation_rpc', return_value=RESERVA)
+    def test_create_saves_the_cleaned_details(self, rpc, save):
+        response = self.api.post('/api/reservas', json={**PAYLOAD, 'zonaCuerpo': ' Antebrazo  derecho ',
+                                                        'descripcionDiseno': 'Rosa en línea fina\ncon sombra '})
+        self.assertEqual(response.status_code, 201, response.text)
+        save.assert_called_once_with(UUID(RESERVA), 'Antebrazo derecho', 'Rosa en línea fina\ncon sombra')
+
+    @patch('main.save_tattoo_details')
+    @patch('main.reservation_rpc', return_value=RESERVA)
+    def test_create_without_details_does_not_touch_the_columns(self, rpc, save):
+        self.assertEqual(self.api.post('/api/reservas', json=PAYLOAD).status_code, 201)
+        save.assert_not_called()
+
+    @patch('main.save_tattoo_details')
+    @patch('main.reservation_rpc')
+    def test_too_long_is_rejected_before_saving(self, rpc, save):
+        response = self.api.post('/api/reservas', json={**PAYLOAD, 'zonaCuerpo': 'x' * 81})
+        self.assertEqual(response.status_code, 422)
+        self.assertIn('zona del cuerpo', response.json()['detail'])
+        response = self.api.post('/api/reservas', json={**PAYLOAD, 'descripcionDiseno': 'x' * 1001})
+        self.assertEqual(response.status_code, 422)
+        rpc.assert_not_called()
+        save.assert_not_called()
+
+    @patch('main.save_tattoo_details')
+    @patch('main.reservation_rpc', return_value=RESERVA)
+    def test_edit_clears_details_only_when_they_change(self, rpc, save):
+        antes = {'id': RESERVA, 'cliente': 'Camila Rojas', 'zonaCuerpo': 'Espalda', 'descripcionDiseno': 'Dragón'}
+        body = {k: v for k, v in PAYLOAD.items() if k != 'id'}
+        with patch('main.reservation_snapshot', return_value=antes):
+            self.api.patch(f'/api/reservas/{RESERVA}', json={**body, 'zonaCuerpo': 'Espalda', 'descripcionDiseno': 'Dragón'})
+            save.assert_not_called()
+            self.api.patch(f'/api/reservas/{RESERVA}', json=body)
+        save.assert_called_once_with(UUID(RESERVA), None, None)
+
+    def test_details_are_added_only_to_reservations_the_user_can_see(self):
+        propia = {'id': RESERVA, 'cliente': 'Camila Rojas', 'sesiones': []}
+        ajena = {'id': 'otra', 'sesiones': []}  # de otro tatuador: sin cliente ni precio
+        db = MagicMock()
+        db.table.return_value.select.return_value.in_.return_value.execute.return_value.data = [
+            {'id': RESERVA, 'zona_cuerpo': 'Muñeca', 'descripcion_diseno': 'Golondrina'}]
+        with patch('main.client', return_value=db):
+            rows = main.with_tattoo_details([propia, ajena])
+        db.table.return_value.select.return_value.in_.assert_called_once_with('id', [RESERVA])
+        self.assertEqual((rows[0]['zonaCuerpo'], rows[0]['descripcionDiseno']), ('Muñeca', 'Golondrina'))
+        self.assertNotIn('zonaCuerpo', rows[1])
+
+    def test_listing_still_works_if_the_columns_are_missing(self):
+        db = MagicMock()
+        db.table.return_value.select.return_value.in_.return_value.execute.side_effect = Exception('column does not exist')
+        with patch('main.client', return_value=db):
+            rows = main.with_tattoo_details([{'id': RESERVA, 'cliente': 'Camila Rojas'}])
+        self.assertNotIn('zonaCuerpo', rows[0])
+
+    def test_version_and_activity_include_the_details(self):
+        base = {'id': RESERVA, 'cliente': 'Camila Rojas', 'sesiones': [], 'zonaCuerpo': 'Espalda', 'descripcionDiseno': 'Dragón'}
+        self.assertNotEqual(main.reservation_version(base), main.reservation_version({**base, 'zonaCuerpo': 'Pierna'}))
+        self.assertNotEqual(main.reservation_version(base), main.reservation_version({**base, 'descripcionDiseno': 'Tigre'}))
+        cambios = actividad.reservation_changes(base, {**base, 'zonaCuerpo': 'Pierna', 'descripcionDiseno': 'Tigre'})
+        self.assertIn('Zona del cuerpo: Espalda → Pierna', cambios)
+        self.assertIn('Descripción del diseño actualizada', cambios)
