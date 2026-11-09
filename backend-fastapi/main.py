@@ -29,7 +29,7 @@ load_dotenv(Path(__file__).with_name(".env"))
 # En el servidor se define CORS_ORIGINS con la URL pública del frontend, separadas por comas si son varias,
 # por ejemplo: CORS_ORIGINS=https://okami-app.onrender.com
 # Sin la variable se usan los orígenes de desarrollo local. Nunca "*": la lista debe quedar cerrada.
-DEV_ORIGINS = ("http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,http://localhost:8000,http://127.0.0.1:8000,https://okami-api-6gaj.onrender.com/,https://okami-app.onrender.com/")
+DEV_ORIGINS = ("http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,http://localhost:8000,http://127.0.0.1:8000,https://okami-api-6gaj.onrender.com,https://okami-app.onrender.com")
 
 
 def allowed_origins(raw=None):
