@@ -1,18 +1,323 @@
-.artists-page { max-width: 960px; margin: auto; padding: 24px; }
-.artists-page form, .artists-page li { background: var(--color-panel); border: 1px solid var(--color-panel-border); border-radius: 12px; padding: 20px; margin: 16px 0; }
-.artists-page form { display: grid; gap: 14px; }
-.artists-page label { display: grid; gap: 6px; }
-.artists-page input, .artists-page select { padding: 10px; border: 1px solid var(--color-border); background: var(--color-surface); border-radius: 6px; font: inherit; width: 100%; box-sizing: border-box; }
-.artists-page button { background: #1b1b18; color: white; padding: 10px 16px; border: 0; border-radius: 6px; cursor: pointer; }
-.artists-page button:disabled { opacity: .5; cursor: wait; }
-.artists-page ul { list-style: none; padding: 0; }
-.artists-page li { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
-.artists-page li span { display: block; margin-top: 6px; color: #666; }
-.artists-dialog { border: 0; border-radius: 12px; padding: 24px; width: min(440px, calc(100vw - 40px)); box-sizing: border-box; }
-.artists-dialog::backdrop { background: #0006; }
-.artists-dialog button { margin: 8px; }
-.artists-actions { display: flex; align-items: flex-end; gap: 12px; }
-.artists-page .artists-modality { display: grid; gap: 4px; font-size: 12px; color: #666; }
-.artists-page .artists-modality select { width: auto; min-width: 160px; padding: 8px; }
-@media (max-width: 560px) { .artists-page li { flex-direction: column; align-items: stretch; } .artists-actions { justify-content: space-between; } }
-.artists-page label small { color: #666; font-size: 12px; }
+/* =========================
+   TATUADORES (admin y recepción)
+   Botón "Agregar tatuador" (abre una ventana), pestañas Activos / Inactivos y tarjetas con el mismo estilo
+   que Espacios: borde superior verde = con acceso, rojo = desactivado.
+========================= */
+
+.artists-page {
+  width: 100%;
+  color: var(--color-text);
+}
+
+/* ---------- Barra: agregar + pestañas ---------- */
+
+.artists-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.artists-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--color-panel-border);
+  border-radius: 10px;
+  background: var(--color-panel);
+}
+
+.artists-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--color-text-soft);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.artists-tab:hover {
+  background: var(--color-surface-muted);
+}
+
+.artists-tab:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+}
+
+.artists-tab-active,
+.artists-tab-active:hover {
+  background: var(--color-dark);
+  color: var(--color-on-dark);
+}
+
+.artists-tab-count {
+  min-width: 20px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  text-align: center;
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.artists-tab-inactivos .artists-tab-count {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+/* ---------- Formulario de registro ---------- */
+
+.artists-modal {
+  width: min(520px, calc(100% - 32px));
+}
+
+.artists-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.artists-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-soft);
+}
+
+.artists-form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.artists-form input,
+.artists-form select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.artists-form input:focus,
+.artists-form select:focus {
+  outline: none;
+  border-color: var(--color-gold);
+  box-shadow: 0 0 0 3px var(--color-gold-ring);
+}
+
+.artists-form input.input-valid {
+  border-color: var(--color-success);
+}
+
+.artists-form input.input-invalid {
+  border-color: var(--color-danger);
+}
+
+.artists-form small {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-muted);
+}
+
+.artists-form small.hint-ok {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.artists-form small.hint-error {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+
+/* ---------- Listado ---------- */
+
+.artists-empty {
+  padding: 24px;
+  border: 1px dashed var(--color-border);
+  border-radius: 12px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.artists-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.artist-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+
+  background: var(--color-panel);
+  border: 1px solid var(--color-panel-border);
+  border-top: 4px solid var(--color-success);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+}
+
+.artist-card-off {
+  background: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+  border-top-color: var(--color-danger);
+}
+
+.artist-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.artist-card-header > div {
+  min-width: 0;
+}
+
+.artist-card h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.artist-avatar {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--color-dark);
+  color: var(--color-on-dark);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.artist-card-off .artist-avatar {
+  opacity: 0.55;
+}
+
+/* Etiquetas bajo el nombre: rol (siempre) y modalidad de arriendo (solo tatuadores) */
+.artist-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.artist-role {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--color-dark);
+  color: var(--color-on-dark);
+}
+
+.artist-role-admin {
+  background: var(--color-gold-text);
+  color: #fff;
+}
+
+.artist-role-recepcion {
+  background: var(--color-pending);
+  color: #fff;
+}
+
+.artist-modality {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface-muted);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-soft);
+}
+
+.artist-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.artist-status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.artist-status-ok {
+  color: var(--color-success);
+}
+
+.artist-status-off {
+  color: var(--color-danger);
+}
+
+.artist-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.artist-card-actions .reservation-button {
+  flex: 1;
+  padding: 9px 14px;
+  font-size: 12px;
+}
+
+/* Borrar definitivo: rojo lleno, distinto del "Desactivar" con borde rojo */
+.artist-card-actions .artist-delete {
+  flex: 0 0 auto;
+  border-color: var(--color-danger);
+  background: var(--color-danger);
+  color: #fff;
+}
+
+.artist-card-actions .artist-delete:hover {
+  background: #6c2424;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .artists-form input,
+  .artists-form select {
+    transition: none;
+  }
+}
+
+/* Editar: botón chico a la izquierda; las demás acciones ocupan el resto */
+.artist-card-actions .artist-edit {
+  flex: 0 0 auto;
+}

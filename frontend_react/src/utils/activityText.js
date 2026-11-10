@@ -35,7 +35,7 @@ export function highlightParts(text) {
 // Tono de la tarjeta según la acción: lo que se borra o cancela se nota más.
 export function actionTone(registro) {
   const accion = registro?.accion ?? "";
-  if (["borrar", "cancelada", "desactivado", "titular_quitado", "pago_borrado"].includes(accion)) return "danger";
+  if (["borrar", "borrado", "cancelada", "desactivado", "titular_quitado", "pago_borrado"].includes(accion)) return "danger";
   if (["crear", "restaurar", "completada", "activado", "titular_agregado", "registro", "invitacion", "pago_registrado"].includes(accion)) return "ok";
   return "info";
 }

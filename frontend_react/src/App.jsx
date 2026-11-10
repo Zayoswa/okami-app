@@ -66,7 +66,7 @@ function App() {
         <Route path="arriendos" element={<ModuleAccess user={user} moduleId="arriendos"><Arriendos /></ModuleAccess>} />
         <Route path="reservas" element={<ModuleAccess user={user} moduleId="reservas"><Reservas user={user} /></ModuleAccess>} />
         <Route path="mis-reservas" element={<ModuleAccess user={user} moduleId="mis-reservas"><MisReservas user={user} /></ModuleAccess>} />
-        <Route path="tatuadores" element={<ModuleAccess user={user} moduleId="tatuadores"><Tatuadores /></ModuleAccess>} />
+        <Route path="tatuadores" element={<ModuleAccess user={user} moduleId="tatuadores"><Tatuadores user={user} /></ModuleAccess>} />
         <Route path="espacios" element={<ModuleAccess user={user} moduleId="puestos"><Espacios user={user} /></ModuleAccess>} />
         <Route path="consentimientos" element={<ModuleAccess user={user} moduleId="consentimientos"><Consentimientos user={user} /></ModuleAccess>} />
         <Route path="calendario" element={<ModuleAccess user={user} moduleId="calendario"><Calendario user={user} /></ModuleAccess>} />

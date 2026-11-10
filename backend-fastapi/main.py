@@ -8,7 +8,7 @@ import time as time_module
 from concurrent.futures import ThreadPoolExecutor
 import httpx
 from pathlib import Path
-from datetime import date, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Literal
 from uuid import UUID
 
@@ -615,13 +615,44 @@ def activity(user_id: UUID, data: ActiveRequest, admin=Depends(require_staff)):
     if not rows:
         raise HTTPException(404, "Usuario no encontrado.")
     roles = db.table("rol").select("nombre").eq("id", rows[0]["rol"]).execute().data
-    if not roles or roles[0]["nombre"].strip().lower() != "tatuador":
-        raise HTTPException(403, "Este módulo solo modifica el acceso de tatuadores.")
+    rol = roles[0]["nombre"].strip().lower() if roles else ""
+    # Recepción solo cambia el acceso de tatuadores; el admin, además, el de recepción. Nadie el de un admin.
+    permitidos = ("tatuador", "recepcion") if admin["role"] == "admin" else ("tatuador",)
+    if rol not in permitidos:
+        raise HTTPException(403, "Solo el administrador puede cambiar el acceso de recepción." if rol == "recepcion"
+                            else "Este módulo solo modifica el acceso de tatuadores y recepción.")
     db.table("usuarios").update({"activo": data.activo}).eq("id", str(user_id)).execute()
     if rows[0].get("activo") != data.activo:
         log_event(admin, "tatuador", "activado" if data.activo else "desactivado",
-                  f"{'Activó' if data.activo else 'Desactivó'} el acceso de {rows[0]['nombre']}.", user_id)
+                  f"{'Activó' if data.activo else 'Desactivó'} el acceso de {rows[0]['nombre']} ({ROLE_LABELS[rol]}).", user_id)
     return {"ok": True}
+
+
+# Borrado definitivo (migración 020), solo admin y solo de un tatuador ya desactivado.
+# Borra sus reservas, sesiones, titularidades, historial de modalidad, perfil y cuenta de Auth.
+# Se conservan sin enlace al usuario: consentimientos (respaldo legal), pagos de arriendo y registro de actividad.
+@app.delete("/api/usuarios/{user_id}")
+def delete_artist(user_id: UUID, admin=Depends(require_admin)):
+    db = client(admin=True)
+    try:
+        result = db.rpc("okami_borrar_tatuador", {"p_id": str(user_id)}).execute().data
+    except APIError as exc:
+        status = {"P0002": 404, "22023": 422, "P0001": 409}.get(exc.code)
+        if status:
+            raise HTTPException(status, exc.message) from exc
+        raise HTTPException(503, "No se pudo borrar al tatuador. Comprueba la migración 020 en Supabase.") from exc
+    except Exception as exc:
+        raise HTTPException(503, "No se pudo comunicar con la base de datos.") from exc
+    nombre = result["nombre"]
+    log_event(admin, "tatuador", "borrado",
+              f"Borró definitivamente a {nombre} ({result['reservas']} reservas, {result['sesiones']} sesiones).", user_id,
+              {"reservas": result["reservas"], "sesiones": result["sesiones"]})
+    try:
+        db.auth.admin.delete_user(str(user_id))
+    except Exception:  # noqa: BLE001 - el perfil ya no existe: la cuenta no puede entrar a la app
+        return {"message": f"{nombre} fue borrado del estudio, pero su cuenta de acceso no se pudo eliminar de Supabase Auth. "
+                           "Bórrala desde el panel de Supabase (Authentication).", "authDeleted": False, **result}
+    return {"message": f"{nombre} fue borrado definitivamente.", "authDeleted": True, **result}
 
 
 class ModalityRequest(BaseModel):
@@ -659,6 +690,58 @@ def change_modality(user_id: UUID, data: ModalityRequest, admin=Depends(require_
         raise
     except Exception as exc:
         raise HTTPException(503, "No se pudo cambiar la modalidad. Comprueba la migración 013.") from exc
+
+
+class RoleRequest(BaseModel):
+    rol: int = Field(gt=0)
+    # Obligatoria al pasar a tatuador (define su arriendo); se ignora al pasar a recepción.
+    modalidad: int | None = Field(default=None, gt=0)
+
+
+# Cambia el rol entre tatuador y recepción (solo admin). No toca cuentas de administrador.
+# Para dejar de ser tatuador no puede ser titular de un puesto ni tener sesiones Programadas por delante:
+# primero se quita como titular en Espacios y se reasignan o cancelan esas sesiones.
+@app.patch("/api/usuarios/{user_id}/rol")
+def change_role(user_id: UUID, data: RoleRequest, admin=Depends(require_admin)):
+    try:
+        db = client(admin=True)
+        rows = db.table("usuarios").select("id,nombre,rol,modalidad").eq("id", str(user_id)).execute().data
+        if not rows:
+            raise HTTPException(404, "Usuario no encontrado.")
+        perfil = rows[0]
+        roles = {r["id"]: r["nombre"].strip().lower() for r in db.table("rol").select("id,nombre").execute().data}
+        actual, nuevo = roles.get(perfil["rol"]), roles.get(data.rol)
+        if actual not in ("tatuador", "recepcion"):
+            raise HTTPException(403, "Solo se puede cambiar el rol de tatuadores y recepción.")
+        if nuevo not in ("tatuador", "recepcion"):
+            raise HTTPException(422, "Selecciona tatuador o recepción.")
+        modalidad = None
+        if nuevo == "tatuador":
+            names = modality_names(db)
+            modalidad = data.modalidad if actual == "recepcion" else (data.modalidad or perfil.get("modalidad"))
+            if modalidad not in names:
+                raise HTTPException(422, "Selecciona la modalidad del tatuador.")
+        if actual == nuevo:
+            return {"ok": True}
+        if actual == "tatuador":
+            if db.table("puesto_titulares").select("puesto").eq("tatuador", str(user_id)).execute().data:
+                raise HTTPException(409, f"{perfil['nombre']} es titular de un puesto. Quítalo como titular en Espacios antes de cambiar su rol.")
+            reservas = [r["id"] for r in db.table("reservas").select("id").eq("user", str(user_id)).is_("archivada_en", "null").execute().data]
+            programada = db.table("reservas_estado").select("id").eq("nombre", "Programada").execute().data
+            if reservas and programada:
+                pendientes = (db.table("reserva_sesiones").select("id").in_("reserva", reservas)
+                              .eq("estado_id", programada[0]["id"]).gte("fin", datetime.now(timezone.utc).isoformat()).execute().data)
+                if pendientes:
+                    raise HTTPException(409, f"{perfil['nombre']} tiene {len(pendientes)} sesión(es) programada(s). "
+                                             "Complétalas, cancélalas o reasígnalas antes de cambiar su rol.")
+        db.table("usuarios").update({"rol": data.rol, "modalidad": modalidad}).eq("id", str(user_id)).execute()
+        log_event(admin, "tatuador", "rol", f"Cambió el rol de {perfil['nombre']}: {ROLE_LABELS[actual]} → {ROLE_LABELS[nuevo]}.",
+                  user_id, {"antes": actual, "despues": nuevo})
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(503, "No se pudo cambiar el rol.") from exc
 
 
 def reservation_rpc(name, params):

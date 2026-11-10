@@ -193,6 +193,20 @@ class AccessTests(unittest.TestCase):
         self.assertEqual(r.status_code, 403)
         client.return_value.table.return_value.update.assert_not_called()
 
+    @patch('main.log_event')
+    @patch('main.client')
+    def test_only_admin_disables_reception(self, client, log_event):
+        query = client.return_value.table.return_value.select.return_value.eq.return_value.execute
+        for role, status in (('recepcion', 403), ('admin', 200)):
+            with self.subTest(role=role):
+                main.app.dependency_overrides[main.require_staff] = lambda: {'role': role}
+                query.side_effect = [SimpleNamespace(data=[{'id': 'target', 'nombre': 'Paula', 'rol': 3, 'activo': True}]),
+                                     SimpleNamespace(data=[{'nombre': 'recepcion'}])]
+                r = self.api.patch('/api/usuarios/11111111-1111-1111-1111-111111111111/actividad', json={'activo': False})
+                self.assertEqual(r.status_code, status, r.text)
+        client.return_value.table.return_value.update.assert_called_once_with({'activo': False})
+        self.assertIn('Paula (recepción)', log_event.call_args.args[3])
+
     def test_password_policy(self):
         main.app.dependency_overrides[main.get_current_user] = lambda: {'role':'tatuador'}
         main.app.dependency_overrides[main.token] = lambda: 'verified-token'

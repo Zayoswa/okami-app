@@ -9,7 +9,9 @@ export const navigation = [
   { id: "mi-panel", path: "/mi-panel", label: "Mi panel", name: "Mi panel", description: "Tus ganancias, sesiones y arriendo del mes", roles: ["tatuador"] },
   { id: "mis-reservas", path: "/mis-reservas", label: "Mis reservas", name: "Mis reservas", description: "Tus reservas y sus sesiones", roles: ["tatuador"] },
   { id: "calendario", path: "/calendario", label: "Calendario", name: "Calendario", description: "Sesiones de la semana por puesto", roles: ["admin", "recepcion", "tatuador"] },
-  { id: "tatuadores", path: "/tatuadores", label: "Tatuadores", name: "Tatuadores", description: "Registro, acceso y modalidad", roles: ["admin", "recepcion"] },
+  { id: "tatuadores", path: "/tatuadores", label: "Tatuadores", name: "Tatuadores", description: "Registro, acceso y modalidad", roles: ["admin", "recepcion"],
+    // El admin ve tatuadores y recepción, así que para él el módulo se llama Usuarios (la ruta no cambia).
+    byRole: { admin: { label: "Usuarios", name: "Usuarios", description: "Tatuadores y recepción: registro y acceso" } } },
   { id: "actividad", path: "/actividad", label: "Actividad", name: "Actividad", description: "Quién hizo qué y cuándo en el estudio", roles: ["admin", "recepcion"] },
   { id: "puestos", path: "/espacios", label: "Espacios", name: "Espacios", description: "Estado, tipo y titulares de los puestos", roles: ["admin", "recepcion"] },
   { id: "consentimientos", path: "/consentimientos", label: "Consentimientos", name: "Consentimientos", description: "Consentimiento informado del cliente, listo para imprimir", roles: ["admin", "recepcion", "tatuador"] },
@@ -30,6 +32,7 @@ export function modulesForUser(user) {
   return order
     .map((id) => navigation.find((module) => module.id === id))
     .filter((module) => module?.roles.includes(user?.role))
+    .map((module) => ({ ...module, ...module.byRole?.[user.role] }))
     .sort((a, b) => Number(Boolean(a.comingSoon)) - Number(Boolean(b.comingSoon)));
 }
 
